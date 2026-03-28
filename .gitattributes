@@ -1,0 +1,25 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Python source files
+*.py text eol=lf
+*.pyi text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Configuration files
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ini text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Shell scripts
+*.sh text eol=lf executable
+
+# Windows batch scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf

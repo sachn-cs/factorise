@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "factorise"
+dynamic = ["version"]
+description = "Fast, deterministic prime factorisation using Miller-Rabin and Pollard's Rho (Brent)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Sachin", email = "sachin@example.com" }
+]
+keywords = [
+    "prime", "factorisation", "miller-rabin", "pollard-rho", "math"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "loguru>=0.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/sachin/factorise"
+Repository = "https://github.com/sachin/factorise"
+"Bug Tracker" = "https://github.com/sachin/factorise/issues"
+
+[project.scripts]
+factorise = "factorise.cli:app"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-benchmark>=4.0.0",
+    "pytest-cov>=4.0.0",
+    "pylint>=3.0.0",
+    "flake8>=6.1.0",
+    "mypy>=1.8.0",
+    "black>=24.0.0",
+    "isort>=5.12.0",
+    "build>=1.0.0",
+    "twine>=5.0.0",
+]
+
+[tool.hatch.version]
+path = "src/factorise/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/factorise"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers -q"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pylint.messages_control]
+disable = ["C0114", "R0903"]
+
+[tool.pylint.format]
+max-line-length = 100
