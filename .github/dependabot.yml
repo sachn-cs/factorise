@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Maintain pip dependencies daily
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # Maintain github action versions weekly
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "actions"
