@@ -43,7 +43,7 @@ factorise = "factorise.cli:app"
 [project.optional-dependencies]
 dev = [
     "pytest>=7.4.0",
-    "pytest-benchmark>=4.0.0",
+    "pytest-benchmark>=5.2.3",
     "pytest-cov>=4.0.0",
     "pylint>=3.0.0",
     "flake8>=6.1.0",
