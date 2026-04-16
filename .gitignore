@@ -69,5 +69,11 @@ venv.bak/
 # MacOS
 .DS_Store
 
+# Ruff
+.ruff_cache/
+
+# Benchmark outputs
+.benchmarks/
+
 # Temporary files
 /tmp/

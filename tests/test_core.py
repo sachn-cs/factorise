@@ -1,6 +1,8 @@
 """Tests for factorise.core."""
+
 import math
 import threading
+from collections.abc import Iterable
 from functools import reduce
 
 import pytest
@@ -18,7 +20,7 @@ from factorise.core import (
 DEFAULT = FactoriserConfig()
 
 
-def product(factors: list[int]) -> int:
+def product(factors: Iterable[int]) -> int:
     """Return the product of all elements in *factors*."""
     return reduce(lambda a, b: a * b, factors, 1)
 
@@ -27,7 +29,7 @@ def is_prime_naive(n: int) -> bool:
     """Brute-force primality — used as ground truth for small n only."""
     if n < 2:
         return False
-    return all((n % i != 0 for i in range(2, math.isqrt(n) + 1)))
+    return all(n % i != 0 for i in range(2, math.isqrt(n) + 1))
 
 
 def test_config_defaults():
@@ -44,15 +46,9 @@ def test_config_custom_values():
     assert cfg.batch_size == 64
 
 
-@pytest.mark.parametrize("kwargs", [{
-    "batch_size": 0
-}, {
-    "batch_size": -1
-}, {
-    "max_iterations": 0
-}, {
-    "max_retries": 0
-}])
+@pytest.mark.parametrize(
+    "kwargs", [{"batch_size": 0}, {"batch_size": -1}, {"max_iterations": 0}, {"max_retries": 0}]
+)
 def test_config_invalid_raises(kwargs):
     """Verify functionality of config_invalid_raises."""
     with pytest.raises(ValueError):
@@ -97,8 +93,7 @@ def test_result_expression_prime():
     assert res.expression() == "7"
 
 
-@pytest.mark.parametrize("bad",
-                         [None, 1.5, "12", [12], (12,), {12}, True, False])
+@pytest.mark.parametrize("bad", [None, 1.5, "12", [12], (12,), {12}, True, False])
 def test_validate_int_rejects_non_int(bad):
     """Verify functionality of validate_int_rejects_non_int."""
     with pytest.raises(TypeError):
@@ -218,8 +213,7 @@ def test_factorise_original_preserved():
         assert factorise(n, DEFAULT).original == n
 
 
-@pytest.mark.parametrize("n,expected_sign", [(2, 1), (100, 1), (-2, -1),
-                                             (-100, -1)])
+@pytest.mark.parametrize("n,expected_sign", [(2, 1), (100, 1), (-2, -1), (-100, -1)])
 def test_factorise_sign(n: int, expected_sign: int):
     """Verify functionality of factorise_sign."""
     assert factorise(n, DEFAULT).sign == expected_sign
@@ -228,54 +222,27 @@ def test_factorise_sign(n: int, expected_sign: int):
 @pytest.mark.parametrize(
     "n, expected_factors, expected_powers",
     [
-        (12, [2, 3], {
-            2: 2,
-            3: 1
-        }),
-        (24, [2, 3], {
-            2: 3,
-            3: 1
-        }),
-        (8, [2], {
-            2: 3
-        }),
-        (360, [2, 3, 5], {
-            2: 3,
-            3: 2,
-            5: 1
-        }),
-        (123456789, [3, 3607, 3803], {
-            3: 2,
-            3607: 1,
-            3803: 1
-        }),
-        (30030, [2, 3, 5, 7, 11, 13], {
-            2: 1,
-            3: 1,
-            5: 1,
-            7: 1,
-            11: 1,
-            13: 1
-        }),
-        (97, [97], {
-            97: 1
-        }),
+        (12, [2, 3], {2: 2, 3: 1}),
+        (24, [2, 3], {2: 3, 3: 1}),
+        (8, [2], {2: 3}),
+        (360, [2, 3, 5], {2: 3, 3: 2, 5: 1}),
+        (123456789, [3, 3607, 3803], {3: 2, 3607: 1, 3803: 1}),
+        (30030, [2, 3, 5, 7, 11, 13], {2: 1, 3: 1, 5: 1, 7: 1, 11: 1, 13: 1}),
+        (97, [97], {97: 1}),
         (1, [], {}),
         (-1, [], {}),
-        (-12, [2, 3], {
-            2: 2,
-            3: 1
-        }),
+        (-12, [2, 3], {2: 2, 3: 1}),
         (0, [], {}),
     ],
 )
-def test_factorise_factors_and_powers(n: int, expected_factors: list[int],
-                                      expected_powers: dict[int, int]):
+def test_factorise_factors_and_powers(
+    n: int, expected_factors: list[int], expected_powers: dict[int, int]
+):
     """Verify functionality of factorise_factors_and_powers."""
     res = factorise(n, DEFAULT)
     assert res.factors == expected_factors
     assert res.powers == expected_powers
-    assert all((is_prime(f) for f in res.factors))
+    assert all(is_prime(f) for f in res.factors)
     if res.factors:
         reconstructed_product = product((p**e for p, e in res.powers.items()))
         assert reconstructed_product == abs(n)
@@ -329,8 +296,7 @@ def test_factorise_primorial():
     assert res.factors == [2, 3, 5, 7, 11, 13]
 
 
-@pytest.mark.parametrize("p,q", [(9973, 9967), (99991, 99989),
-                                 (999983, 999979)])
+@pytest.mark.parametrize("p,q", [(9973, 9967), (99991, 99989), (999983, 999979)])
 def test_factorise_semiprime(p: int, q: int):
     """Verify functionality of factorise_semiprime."""
     res = factorise(p * q, DEFAULT)
@@ -377,8 +343,7 @@ def test_factorise_negative_one():
     assert res.is_prime is False
 
 
-@pytest.mark.parametrize("bad",
-                         [None, 1.5, "12", [12], (12,), {12}, True, False])
+@pytest.mark.parametrize("bad", [None, 1.5, "12", [12], (12,), {12}, True, False])
 def test_factorise_invalid_type_raises(bad):
     """Verify functionality of factorise_invalid_type_raises."""
     with pytest.raises(TypeError):
@@ -387,9 +352,7 @@ def test_factorise_invalid_type_raises(bad):
 
 def test_factorise_uses_provided_config():
     """Verify functionality of factorise_uses_provided_config."""
-    cfg = FactoriserConfig(batch_size=64,
-                           max_iterations=1000000,
-                           max_retries=10)
+    cfg = FactoriserConfig(batch_size=64, max_iterations=1000000, max_retries=10)
     res = factorise(60, cfg)
     assert res.factors == [2, 3, 5]
 

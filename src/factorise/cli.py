@@ -43,8 +43,7 @@ def handle_signal(signum: int, _frame: FrameType | None) -> None:
         signum: The integer identifier of the caught signal.
         _frame: The current stack frame (unused).
     """
-    logger.info("Received signal {sig}, shutting down.",
-                sig=signal.Signals(signum).name)
+    logger.info("Received signal {sig}, shutting down.", sig=signal.Signals(signum).name)
     sys.exit(SUCCESS_EXIT_CODE)
 
 
@@ -62,9 +61,7 @@ def display_prime(number: int) -> None:
     Args:
         number: The evaluated prime integer.
     """
-    console.print(
-        Panel(f"[bold green]{number}[/bold green] is a prime number!",
-              title="Result"))
+    console.print(Panel(f"[bold green]{number}[/bold green] is a prime number!", title="Result"))
 
 
 def display_factors(result: FactorisationResult, verbose: bool) -> None:
@@ -109,10 +106,8 @@ def configure_logging(log_level: str) -> None:
 def main(
     number: int = typer.Argument(..., help="The integer to factorise."),
     verbose: bool = typer.Option(
-        False,
-        "--verbose",
-        "-v",
-        help="Print the full prime product expression."),
+        False, "--verbose", "-v", help="Print the full prime product expression."
+    ),
     log_level: str = typer.Option(
         DEFAULT_LOG_LEVEL,
         "--log-level",

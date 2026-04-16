@@ -13,6 +13,7 @@ import math
 import os
 import random
 from collections import Counter
+from collections.abc import Generator
 
 from loguru import logger
 
@@ -47,9 +48,7 @@ class FactorisationResult:
 
     def expression(self) -> str:
         """Return a readable prime product string, e.g. '-1 * 2^2 * 3'."""
-        terms = [
-            f"{p}^{e}" if e > 1 else str(p) for p, e in self.powers.items()
-        ]
+        terms = [f"{p}^{e}" if e > 1 else str(p) for p, e in self.powers.items()]
         prefix = "-1 * " if self.sign == -1 else ""
         return prefix + " * ".join(terms)
 
@@ -78,14 +77,14 @@ class FactoriserConfig:
 
     def __post_init__(self) -> None:
         """Validate fields immediately — fail fast at construction time."""
-        if self.batch_size < 1:
-            raise ValueError(f"batch_size must be >= 1, got {self.batch_size}")
-        if self.max_iterations < 1:
+        if self.batch_size < 1 or self.batch_size > 10_000:
+            raise ValueError(f"batch_size must be >= 1 and <= 10_000, got {self.batch_size}")
+        if self.max_iterations < 1 or self.max_iterations > 1_000_000_000:
             raise ValueError(
-                f"max_iterations must be >= 1, got {self.max_iterations}")
-        if self.max_retries < 1:
-            raise ValueError(
-                f"max_retries must be >= 1, got {self.max_retries}")
+                f"max_iterations must be >= 1 and <= 1_000_000_000, got {self.max_iterations}"
+            )
+        if self.max_retries < 1 or self.max_retries > 100:
+            raise ValueError(f"max_retries must be >= 1 and <= 100, got {self.max_retries}")
 
     @classmethod
     def from_env(cls) -> "FactoriserConfig":
@@ -98,8 +97,7 @@ class FactoriserConfig:
         """
         return cls(
             batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
-            max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS",
-                                         "10000000")),
+            max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS", "10000000")),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
         )
 
@@ -120,8 +118,7 @@ def validate_int(value: object, name: str = "n") -> None:
         TypeError: If *value* is not a plain int, or is a bool.
     """
     if isinstance(value, bool) or not isinstance(value, int):
-        raise TypeError(
-            f"{name} must be a plain int, got {type(value).__name__!r}")
+        raise TypeError(f"{name} must be a plain int, got {type(value).__name__!r}")
 
 
 # ---------------------------------------------------------------------------
@@ -212,9 +209,9 @@ def pollard_brent_attempt(
                 batch_limit = config.max_iterations - iterations
 
             if batch_limit <= 0:
-                logger.warning("iteration cap n={n} limit={limit}",
-                               n=n,
-                               limit=config.max_iterations)
+                logger.warning(
+                    "iteration cap n={n} limit={limit}", n=n, limit=config.max_iterations
+                )
                 return None
 
             for _ in range(batch_limit):
@@ -255,8 +252,7 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
     """
     # Trial division fast-path for tiny primes
     # (Fixes Pollard's Rho cycle exhaustion on tiny fields like n=15, 35)
-    for p in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59,
-              61, 67, 71, 73):
+    for p in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73):
         if n % p == 0:
             return p
     if is_prime(n):
@@ -269,11 +265,7 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
     for attempt in range(1, config.max_retries + 1):
         y = random.randint(1, n - 1)
         c = random.randint(1, n - 1)
-        logger.debug("attempt={attempt} n={n} y={y} c={c}",
-                     attempt=attempt,
-                     n=n,
-                     y=y,
-                     c=c)
+        logger.debug("attempt={attempt} n={n} y={y} c={c}", attempt=attempt, n=n, y=y, c=c)
 
         factor = pollard_brent_attempt(n, y, c, config)
         if factor is not None:
@@ -282,10 +274,11 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
 
     raise RuntimeError(
         f"pollard_brent failed for n={n} after {config.max_retries} attempts. "
-        "Increase max_retries or max_iterations in FactoriserConfig.")
+        "Increase max_retries or max_iterations in FactoriserConfig."
+    )
 
 
-def _factor_yield(n: int, config: FactoriserConfig):
+def _factor_yield(n: int, config: FactoriserConfig) -> Generator[int, None, None]:
     """Recursively yield prime factors of n."""
     if n < 2:
         return
@@ -341,21 +334,13 @@ def factorise(
     logger.info("factorise start n={n}", n=n)
 
     if n == 0:
-        return FactorisationResult(original=0,
-                                   sign=1,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(original=0, sign=1, factors=[], powers={}, is_prime=False)
 
     sign = -1 if n < 0 else 1
     abs_n = abs(n)
 
     if abs_n == 1:
-        return FactorisationResult(original=n,
-                                   sign=sign,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(original=n, sign=sign, factors=[], powers={}, is_prime=False)
 
     raw_factors = factor_flatten(abs_n, cfg)
     powers = dict(Counter(raw_factors))
@@ -365,11 +350,8 @@ def factorise(
         sign=sign,
         factors=factors,
         powers=powers,
-        is_prime=(len(factors) == 1 and sum(powers.values()) == 1) and
-        abs_n > 1,
+        is_prime=(len(factors) == 1 and sum(powers.values()) == 1) and abs_n > 1,
     )
 
-    logger.info("factorise complete n={n} factors={factors}",
-                n=n,
-                factors=factors)
+    logger.info("factorise complete n={n} factors={factors}", n=n, factors=factors)
     return result

@@ -1,4 +1,5 @@
 """Tests for factorise.cli."""
+
 from typer.testing import CliRunner
 
 from factorise.cli import app
@@ -6,7 +7,7 @@ from factorise.cli import app
 runner = CliRunner()
 
 
-def invoke(*args: str):
+def invoke(*args: int | str) -> None:
     """Verify functionality of invoke."""
     return runner.invoke(app, [str(a) for a in args])
 
@@ -103,8 +104,7 @@ def test_cli_help_exits_zero():
     """Verify functionality of cli_help_exits_zero."""
     result = runner.invoke(app, ["--help"])
     assert result.exit_code == 0
-    assert "factorise" in result.output.lower(
-    ) or "number" in result.output.lower()
+    assert "factorise" in result.output.lower() or "number" in result.output.lower()
 
 
 def test_cli_missing_argument_exits_nonzero():

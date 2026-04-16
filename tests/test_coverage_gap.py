@@ -7,15 +7,15 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from factorise.cli import app
-from factorise.cli import configure_logging
-from factorise.cli import handle_signal
-from factorise.core import FactorisationResult
-from factorise.core import FactoriserConfig
-from factorise.core import factorise
-from factorise.core import pollard_brent
-from factorise.core import pollard_brent_attempt
-from factorise.core import validate_int
+from factorise.cli import app, configure_logging, handle_signal
+from factorise.core import (
+    FactorisationResult,
+    FactoriserConfig,
+    factorise,
+    pollard_brent,
+    pollard_brent_attempt,
+    validate_int,
+)
 
 # Constants for Testing
 TEST_BATCH_SIZE: int = 64
@@ -163,21 +163,11 @@ def test_cli_error_handling_value_error() -> None:
 def test_result_expression_complex() -> None:
     """Test FactorisationResult.expression with various factors and signs."""
     res = FactorisationResult(
-        original=-30,
-        sign=-1,
-        factors=[2, 3, 5],
-        powers={2: 1, 3: 1, 5: 1},
-        is_prime=False
+        original=-30, sign=-1, factors=[2, 3, 5], powers={2: 1, 3: 1, 5: 1}, is_prime=False
     )
     assert res.expression() == "-1 * 2 * 3 * 5"
 
-    res2 = FactorisationResult(
-        original=1,
-        sign=1,
-        factors=[],
-        powers={},
-        is_prime=False
-    )
+    res2 = FactorisationResult(original=1, sign=1, factors=[], powers={}, is_prime=False)
     assert res2.expression() == ""
 
 
@@ -188,6 +178,7 @@ def test_result_expression_complex() -> None:
 
 def test_core_thread_safety() -> None:
     """Verify that multiple threads can factorise concurrently without race conditions."""
+
     def worker() -> None:
         """Sequential factorisation routine for thread testing."""
         for i in range(100, 200):
