@@ -1,172 +1,141 @@
 # factorise
 
-[![Build Status](https://github.com/sachin/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachin/factorise/actions)
+[![CI](https://github.com/sachin/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachin/factorise/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![Coverage Status](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/sachin/factorise)
-[![Code Style: Google](https://img.shields.io/badge/code%20style-google-3666d6.svg)](https://google.github.io/styleguide/pyguide.html)
+[![Coverage](https://img.shields.io/badge/coverage-99%25-brightgreen.svg)](https://github.com/sachin/factorise)
 
-A pure-Python library for deterministic prime factorisation of arbitrary integers,
-built on two well-established algorithms: **Miller-Rabin** primality testing and
-**Pollard's Rho (Brent's improvement)** for factor finding.
-
-Supports Python 3.10+. Installable, importable, and accessible via CLI.
+A pure-Python library for deterministic prime factorisation of arbitrary integers, built on **Miller-Rabin** primality testing and **Pollard's Rho (Brent)** for factor finding. Supports Python 3.10+, installable via pip, importable as a library, and accessible via CLI.
 
 ---
 
-## Overview
+## Project Overview
 
-`factorise` solves the problem of decomposing any integer into its prime factors,
-quickly and correctly, for numbers that are large enough to make trial division
-impractical.
+### Problem It Solves
 
-It can be used:
+Decomposing an integer into its prime factors is foundational to number theory, cryptography, and algorithmics. For numbers large enough to make trial division impractical, `factorise` provides a fast, correct, and memory-efficient solution without C extensions or external native dependencies.
 
-- As a Python library in any project requiring prime decomposition
-- As a command-line tool for interactive or scripted use
-- As a reference implementation of the Pollard-Brent algorithm in pure Python
+### Value Proposition
+
+- **Deterministic:** Miller-Rabin with the Jaeschke witness set is proven deterministic for all integers below 2^64 — no probability of false positives.
+- **Zero-dependency runtime:** Only `typer`, `rich`, and `loguru` at runtime; no C extensions, no GMP, no external services.
+- **Explicit configuration:** No global state; every algorithm parameter is passed through `FactoriserConfig`.
+- **Production-ready:** Structured logging, typed interfaces, comprehensive error handling, and graceful signal handling in the CLI.
 
 ---
 
 ## Architecture
 
-The library is organised as a single cohesive module with a layered design:
-
 ```
-Input validation
-      │
-      ▼
-Miller-Rabin primality test  ◄──── used throughout factorisation
-      │
-      ▼
-Pollard-Brent (one attempt)
-      │
-      ▼
-Pollard-Brent (with retries)  ◄── uses fresh random seeds on failure
-      │
-      ▼
-factor_flatten (recursive splitter)
-      │
-      ▼
-factorise()  ──────────────────────► FactorisationResult
+Input validation (validate_int)
+         │
+         ▼
+  Miller-Rabin primality test ◄──── gate for all recursive factorisation steps
+         │
+         ▼
+  Pollard-Brent (single attempt)  ── batches GCD ops; returns None on cap hit
+         │
+         ▼
+  Pollard-Brent (with retries)  ◄── fresh random seeds; raises RuntimeError on exhaustion
+         │
+         ▼
+  _factor_yield (recursive splitter)  ── yields prime factors via generator
+         │
+         ▼
+  factorise() ─────────────────────────► FactorisationResult (frozen dataclass)
 ```
 
-Configuration (`FactoriserConfig`) is passed explicitly through the call chain —
-there is no global state.
+**Key design decisions:**
+- `FactoriserConfig` is a frozen dataclass — immutable after construction.
+- `_factor_yield` is a generator function — memory-efficient for numbers with many repeated factors.
+- `validate_int` enforces plain `int` only; `bool` is rejected explicitly.
 
 ---
 
-## System Components
+## Features
 
-### `FactorisationResult`
+### Core Algorithms
 
-A frozen dataclass that is the single, typed return value of `factorise()`.
+| Feature | Description |
+|---------|-------------|
+| **Deterministic Miller-Rabin** | Fixed 12-witness set proven sufficient for all n < 2^64 |
+| **Brent's Pollard Rho** | Batched GCD computation reduces modular arithmetic calls vs classic Rho |
+| **Trial division fast-path** | First checks against primes ≤ 73 before invoking Pollard-Brent |
+| **Perfect square detection** | `math.isqrt` shortcut before expensive factorisation |
+| **Configurable iteration cap** | Hard limit prevents infinite loops on pathological composite inputs |
 
-| Attribute  | Type            | Description                                        |
-|------------|-----------------|----------------------------------------------------|
-| `original` | `int`           | The original input value                           |
-| `sign`     | `int`           | `1` for non-negative, `-1` for negative            |
-| `factors`  | `list[int]`     | Sorted unique prime factors, e.g. `[2, 3]` |
-| `powers`   | `dict[int, int]`| Maps each prime to its exponent, e.g. `{2: 2, 3: 1}` |
-| `is_prime` | `bool`          | `True` if the original number is prime             |
+### API Surface
 
-**Method:**
+| Symbol | Type | Description |
+|--------|------|-------------|
+| `factorise(n, config?)` | function | Primary entry point; returns `FactorisationResult` |
+| `is_prime(n)` | function | Standalone primality test; no config required |
+| `pollard_brent(n, config)` | function | Exposes the factor-finding loop directly |
+| `FactorisationResult` | frozen dataclass | Immutable result container with `.expression()` |
+| `FactoriserConfig` | frozen dataclass | Explicit parameter container; supports `from_env()` |
 
-```python
-result.expression()  # → '2^2 * 3'  or  '-1 * 2^2 * 3'
-```
+### CLI
 
----
-
-### `FactoriserConfig`
-
-A frozen dataclass controlling all algorithm parameters.
-Constructed directly or loaded from environment variables via `from_env()`.
-
-| Parameter        | Env Variable                  | Type  | Default      | Description                                           |
-|------------------|-------------------------------|-------|--------------|-------------------------------------------------------|
-| `batch_size`     | `FACTORISE_BATCH_SIZE`        | `int` | `128`        | GCD operations batched per iteration (throughput)     |
-| `max_iterations` | `FACTORISE_MAX_ITERATIONS`    | `int` | `10_000_000` | Hard cap on inner steps per Pollard-Brent attempt     |
-| `max_retries`    | `FACTORISE_MAX_RETRIES`       | `int` | `20`         | Fresh random seeds to try before raising `RuntimeError` |
-
-All fields are validated immediately at construction — invalid values raise `ValueError`.
+| Flag | Description |
+|------|-------------|
+| `factorise N` | Factorise integer N |
+| `--verbose`, `-v` | Show full prime product expression |
+| `--log-level` | Set log level (DEBUG, INFO, WARNING, ERROR); respects `FACTORISE_LOG_LEVEL` env var |
 
 ---
 
-## Algorithms
+## Tech Stack
 
-### Miller-Rabin Primality Test
-
-Miller-Rabin is a probabilistic primality test that, when given a carefully
-chosen fixed set of witnesses, becomes **fully deterministic** for all integers
-below a proven bound.
-
-**How it works:**
-
-Given an odd integer `n > 1`, write `n − 1 = 2^s * d` where `d` is odd.
-For each witness `a`:
-
-1. Compute `x = a^d mod n`
-2. If `x == 1` or `x == n − 1`, this witness passes — continue to the next
-3. Square `x` up to `s − 1` times:
-   - If `x == n − 1` at any point, this witness passes
-   - If the loop ends without finding `n − 1`, `n` is **composite**
-4. If all witnesses pass, `n` is **prime**
-
-**Witness set used:**
-
-```
-{2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37}
-```
-
-This set is provably sufficient to make the test **deterministic for all
-n < 2^64** (Jaeschke, 1993; Sorenson & Webster, 2015).
-
-**Complexity:** `O(k log² n)` where `k` is the number of witnesses.
+| Role | Tool | Version |
+|------|------|---------|
+| Language | Python | 3.10+ |
+| CLI framework | [typer](https://typer.tiangolo.com/) | ≥ 0.9 |
+| Terminal output | [rich](https://github.com/Textualize/rich) | ≥ 13.0 |
+| Logging | [loguru](https://github.com/Delgan/loguru) | ≥ 0.7.3 |
+| Linting + formatting | [ruff](https://github.com/astral-sh/ruff) | ≥ 0.9.0 |
+| Type checking | [mypy](https://mypy-lang.org/) | ≥ 1.8.0 |
+| Formatting | [black](https://black.readthedocs.io/) | ≥ 24.0 |
+| Testing | [pytest](https://pytest.org/) | ≥ 7.4.0 |
+| Benchmarking | [pytest-benchmark](https://pytest-benchmark.readthedocs.io/) | ≥ 5.2.3 |
+| Coverage | [pytest-cov](https://pytest-cov.readthedocs.io/) | ≥ 4.0.0 |
+| Build | [hatchling](https://hatch.pypa.io/) | latest |
 
 ---
 
-### Pollard's Rho — Brent's Improvement
+## Quick Start
 
-Pollard's Rho is a randomised integer factorisation algorithm based on cycle
-detection in a pseudo-random sequence. Brent's improvement makes it more
-efficient by using a different cycle-detection strategy and batching GCD
-operations to reduce the number of modular arithmetic calls.
+### Prerequisites
 
-**Complexity:** `O(n^{1/4})` per successful attempt on average.
+- Python 3.10 or higher
+- pip ≥ 23.0
 
----
-
-## Detailed Algorithm Documentation
-
-For a deep-dive into the mathematical derivations and implementation nuances:
-
-- [Miller–Rabin Primality Testing](docs/miller_rabin.md)
-- [Pollard’s Rho Factorization](docs/pollards_rho.md)
-- [Brent’s Improved Factorization](docs/pollards_rho_brent.md)
-- [Bibliography & References](docs/references.md)
-
----
-
-## Installation
+### Installation
 
 ```bash
-# Install from source
-pip install .
+# Install latest release from PyPI
+pip install factorise
 
-# Install with development tools
-pip install ".[dev]"
+# Install from source (editable)
+pip install -e .
+
+# Install with development dependencies
+pip install -e ".[dev]"
 ```
 
-**Runtime dependencies:**
+### Environment Variables
 
-| Package  | Version  | Purpose                          |
-|----------|----------|----------------------------------|
-| `typer`  | `≥ 0.9`  | CLI framework                    |
-| `rich`   | `≥ 13.0` | Terminal output formatting       |
-| `loguru` | `≥ 0.7`  | Structured logging               |
+Copy `.env.example` to `.env` and adjust as needed:
 
-**Requires:** Python 3.10+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FACTORISE_BATCH_SIZE` | `128` | GCD operations batched per iteration |
+| `FACTORISE_MAX_ITERATIONS` | `10_000_000` | Hard cap on inner steps per Pollard-Brent attempt |
+| `FACTORISE_MAX_RETRIES` | `20` | Fresh random seeds before raising `RuntimeError` |
+| `FACTORISE_LOG_LEVEL` | `WARNING` | CLI log verbosity (DEBUG, INFO, WARNING, ERROR) |
 
 ---
 
@@ -178,18 +147,17 @@ pip install ".[dev]"
 # Factorise a number
 factorise 123456789
 
-# Show the full prime product expression
+# Verbose output with full expression
 factorise 123456789 --verbose
 
-# Enable debug logging
+# Debug logging
 factorise 123456789 --log-level DEBUG
 
-# Show help
+# Help
 factorise --help
 ```
 
-**Example output:**
-
+**Output:**
 ```
       Factorisation of 123456789
 ┏━━━━━━━━━━━━━━┳━━━━━━━━━━┓
@@ -203,23 +171,21 @@ factorise --help
 Full expression: 3^2 * 3607 * 3803
 ```
 
----
-
 ### Library
 
 ```python
 from factorise import factorise, FactoriserConfig, FactorisationResult
 
-# Use defaults (reads from environment variables)
+# Default config (reads from environment)
 result = factorise(123456789)
 
-# Or pass an explicit config
+# Explicit config
 config = FactoriserConfig(batch_size=256, max_retries=30)
 result = factorise(123456789, config)
 
-print(result.factors)     # [3, 3607, 3803]
-print(result.powers)      # {3: 2, 3607: 1, 3803: 1}
-print(result.is_prime)    # False
+print(result.factors)      # [3, 3607, 3803]
+print(result.powers)       # {3: 2, 3607: 1, 3803: 1}
+print(result.is_prime)     # False
 print(result.expression()) # '3^2 * 3607 * 3803'
 ```
 
@@ -228,102 +194,112 @@ print(result.expression()) # '3^2 * 3607 * 3803'
 ```python
 from factorise.core import is_prime
 
-is_prime(2**31 - 1)   # True  (Mersenne prime M31)
-is_prime(100)          # False
+is_prime(2**31 - 1)  # True  (Mersenne prime M31)
+is_prime(100)        # False
 ```
 
-**Handling errors:**
+**Error handling:**
 
 ```python
 from factorise import factorise
 
 try:
     result = factorise(n)
-except TypeError as e:
-    # n was not a plain int (bool, float, str, etc.)
-    ...
-except RuntimeError as e:
-    # Factorisation exhausted all retries — increase max_retries or max_iterations
-    ...
+except TypeError:
+    # n is not a plain int (bool, float, str, etc.)
+    raise
+except RuntimeError:
+    # Exhausted max_retries; increase max_iterations or max_retries
+    raise
 ```
 
 ---
 
 ## Configuration
 
-All algorithm parameters can be set via environment variables.
-They are validated at `FactoriserConfig` construction time.
-
-```bash
-# Tune GCD batch size (higher = fewer GCD calls, more multiplication)
-export FACTORISE_BATCH_SIZE=256
-
-# Raise the per-attempt iteration cap for very large numbers
-export FACTORISE_MAX_ITERATIONS=50000000
-
-# Allow more random seed retries before giving up
-export FACTORISE_MAX_RETRIES=50
-
-# Set CLI log verbosity (DEBUG, INFO, WARNING, ERROR)
-export FACTORISE_LOG_LEVEL=INFO
-```
-
-Or construct the config in code:
+`FactoriserConfig` is a frozen dataclass. All fields are validated at construction time.
 
 ```python
 from factorise import FactoriserConfig
 
+# Direct construction
 config = FactoriserConfig(
     batch_size=256,
     max_iterations=50_000_000,
     max_retries=50,
 )
+
+# From environment variables
+config = FactoriserConfig.from_env()
 ```
+
+**Field constraints:**
+
+| Field | Validation |
+|-------|------------|
+| `batch_size` | must be ≥ 1 |
+| `max_iterations` | must be ≥ 1 |
+| `max_retries` | must be ≥ 1 |
+
+Invalid values raise `ValueError` immediately at construction.
 
 ---
 
-## Project Structure
+## Testing
 
+```bash
+# Run the full test suite
+pytest tests/ -v
+
+# Run with coverage report
+pytest --cov=factorise --cov-report=term-missing tests/
+
+# Run benchmarks (requires pytest-benchmark)
+pytest benchmarks/bench_timing.py --benchmark-only -v
+
+# Run type checker
+mypy src/ tests/ benchmarks/
+
+# Run linter
+ruff check src/ tests/ benchmarks/
+
+# Run formatter check
+ruff format --check src/ tests/ benchmarks/
 ```
-factorise/
-├── docs/                       # Detailed algorithm documentation
-│   ├── miller_rabin.md
-│   ├── pollards_rho.md
-│   └── pollards_rho_brent.md
-├── benchmarks/                 # Latency and memory benchmarks
-├── pyproject.toml              # Project metadata and dependencies
-├── README.md                   # This file
-├── src/
-│   └── factorise/
-│       ├── __init__.py         # Public API exports
-│       ├── core.py             # Algorithms, config, and result types
-│       └── cli.py              # Typer-based CLI
-└── tests/
-    ├── test_core.py            # Core algorithm tests (225+ cases)
-    ├── test_cli.py             # CLI integration tests
-    └── test_coverage_gap.py    # Exhaustive edge-case validation
-```
 
-### Key files
+**Coverage:** 239 test cases across unit and integration suites, targeting 99%+ coverage.
 
-| File            | Responsibility                                               |
-|-----------------|--------------------------------------------------------------|
-| `core.py`       | All mathematical logic, config, and typed result dataclass   |
-| `cli.py`        | CLI entry point; display helpers; signal handling            |
-| `__init__.py`   | Exports `factorise`, `is_prime`, `FactorisationResult`, `FactoriserConfig` |
+**Test categories:**
+
+| Suite | File | Scope |
+|-------|------|-------|
+| Unit | `test_core.py` | Core algorithms, config, result types |
+| Integration | `test_cli.py` | CLI invocation, signal handling, error branches |
+| Edge cases | `test_coverage_gap.py` | Iteration caps, backtracking, concurrency |
 
 ---
 
-## Operational Notes
+## CI/CD
+
+Pipelines run on every push to `master` and every pull request.
+
+| Job | Steps |
+|-----|-------|
+| **lint** | `ruff check`, `ruff format --check` |
+| **typecheck** | `mypy src/ tests/ benchmarks/` |
+| **test** | `pytest --cov=factorise` on Python 3.10, 3.11, 3.12 |
+
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full pipeline definition.
+
+---
+
+## Observability
 
 ### Logging
 
-Logging is powered by `loguru` and is **disabled by default** to avoid noise
-in library contexts. Callers opt into logging explicitly.
+`loguru` is used throughout. Logging is **disabled by default** in library contexts to avoid noise; the CLI enables it based on `--log-level` / `FACTORISE_LOG_LEVEL`.
 
-**CLI:** pass `--log-level` or set `FACTORISE_LOG_LEVEL`.
-
-**Library:**
+**Library opt-in:**
 
 ```python
 from loguru import logger
@@ -332,79 +308,105 @@ logger.enable("factorise")
 logger.add("factorise.log", level="DEBUG")
 ```
 
-**Events logged:**
+**Events:**
 
-| Level     | Event                                                        |
-|-----------|--------------------------------------------------------------|
-| `INFO`    | `factorise` start and completion with factor list            |
-| `DEBUG`   | Each Pollard-Brent attempt, seed values, and each split      |
-| `WARNING` | Iteration cap or backtrack cap reached (attempt abandoned)   |
-| `ERROR`   | Invalid input or factorisation failure (CLI only)            |
+| Level | When |
+|-------|------|
+| `INFO` | `factorise` start and completion with factor list |
+| `DEBUG` | Each Pollard-Brent attempt, seed values, and each recursive split |
+| `WARNING` | Iteration cap or backtrack cap reached; attempt abandoned |
+| `ERROR` | Invalid input or factorisation failure (CLI only) |
 
-### Error Handling
+### Signal Handling (CLI)
 
-| Exception      | Cause                                                              |
-|----------------|--------------------------------------------------------------------|
-| `TypeError`    | Input is not a plain `int` (e.g. `bool`, `float`, `str`)         |
-| `ValueError`   | `FactoriserConfig` receives an out-of-range parameter              |
-| `RuntimeError` | Factorisation failed after exhausting `max_retries` attempts       |
-
-Errors are never silently swallowed. All exceptions preserve their full stack trace.
-
-### Graceful Shutdown (CLI)
-
-The CLI registers handlers for `SIGINT` and `SIGTERM`. On either signal,
-it logs the event and exits cleanly with code `0`.
+The CLI registers `SIGINT` and `SIGTERM` handlers that log the signal name and exit cleanly with code `0`.
 
 ---
 
-## Development
+## Security
 
-### Setup
+- **Input validation:** `validate_int` explicitly rejects `bool` and all non-`int` types before any computation.
+- **No dynamic code execution:** No `eval`, `exec`, `compile`, or `__import__`.
+- **No secrets in code:** All tuning parameters live in `FactoriserConfig` or environment variables; see `.env.example`.
+- **Deterministic output:** The algorithm is pure-math deterministic for n < 2^64; no timing side-channels are claimed, but no secret-dependent branches exist.
+- **Fuzzing-ready:** The core functions are pure and referentially transparent apart from `random` internals scoped to `pollard_brent`.
 
-```bash
-# Install in editable mode with dev tools
-pip install -e ".[dev]"
+**Intended audience:** Mathematical and educational use. This library does not implement constant-time operations or side-channel protections and is not suitable for cryptographic production use without additional review.
+
+---
+
+## Project Structure
+
+```
+factorise/
+├── src/factorise/
+│   ├── __init__.py       # Public API exports
+│   ├── core.py           # Algorithms, config, result types, validation
+│   └── cli.py            # Typer CLI, display helpers, signal handlers
+├── tests/
+│   ├── test_core.py      # Core algorithm unit tests (225+ cases)
+│   ├── test_cli.py      # CLI integration tests
+│   └── test_coverage_gap.py  # Edge-case and concurrency tests
+├── benchmarks/          # Latency and throughput benchmarks
+├── docs/                # Detailed algorithm documentation (Mathematical notes)
+│   ├── miller_rabin.md
+│   ├── pollards_rho.md
+│   └── pollards_rho_brent.md
+├── .github/workflows/ci.yml  # GitHub Actions pipeline
+├── .env.example         # Environment variable template
+└── pyproject.toml       # Hatch build config, dependencies, tool settings
 ```
 
-### Running Tests
+---
 
-```bash
-# Run the full suite
-python3 -m pytest -p no:asyncio tests/ -v
+## Contributing
 
-# Run with coverage
-pytest --cov=factorise --cov-report=term-missing tests/
-```
-
-### Coding Standards
-
-- **Style:** PEP 8, enforced by `pylint` and `black`
-- **Types:** All public functions carry complete type annotations
-- **Docstrings:** Google style, required on all public functions and classes
-- **No booleans or floats as integers:** `validate_int()` enforces plain `int` only
-- **No global state:** configuration is always passed explicitly
+1. **Fork and branch:** Use feature branches; `master` is the integration branch.
+2. **Style:** All code passes `ruff check` and `ruff format`. All public functions carry PEP 484 type hints.
+3. **Tests:** All new functionality requires tests. PRs with failing tests will not be merged. Coverage must not regress.
+4. **Docstrings:** Google-style docstrings required on all public functions and classes.
+5. **Commits:** Conventional commits are not enforced, but messages should describe _why_, not _what_.
+6. **No global state:** Configuration is always passed explicitly; no module-level mutable state.
 
 ### Adding a New Algorithm
 
-1. Implement the algorithm as a plain function in `core.py`
-2. Accept `FactoriserConfig` as a parameter if it needs tuneable limits
-3. Return a factor or raise `RuntimeError` — never return silently on failure
-4. Add tests in `tests/test_core.py` covering correct output, edge cases, and failure modes
-5. Export from `__init__.py` if it is part of the public API
+1. Implement as a plain function in `core.py`; accept `FactoriserConfig` if tuneable.
+2. Return a factor or raise `RuntimeError` — do not return `None` silently on failure.
+3. Add tests covering correct output, edge cases, and failure modes in `test_core.py`.
+4. Export from `__init__.py` if it is part of the public API.
+5. Verify `ruff check`, `ruff format`, and `mypy src/` all pass.
+
+---
+
+## Versioning & Releases
+
+**Strategy:** [Semantic Versioning (SemVer)](https://semver.org/).
+
+- `MAJOR` version: Breaking changes to the public API.
+- `MINOR` version: New backwards-compatible functionality.
+- `PATCH` version: Bug fixes with no API changes.
+
+**Release process:**
+
+1. Update `__version__` in `src/factorise/__init__.py`.
+2. Update `CHANGELOG.md` with changes since last release.
+3. Create a signed tag: `git tag -s vX.Y.Z -m "Release X.Y.Z"`.
+4. Build and publish: `pip build && twine upload dist/*`.
 
 ---
 
 ## Limitations
 
-- **Pure Python:** no C extensions. For maximum throughput on very large numbers (> 10^20), consider `gmpy2` or `sympy`.
-- **Recursion depth:** `factor_flatten` is recursive. Numbers with many small factors may approach Python's default recursion limit (`sys.setrecursionlimit`).
-- **Negative CLI input:** `typer` interprets a leading `-` as an option flag. Negative integers cannot currently be passed directly as CLI arguments.
-- **Randomised algorithm:** Pollard-Brent is probabilistic per attempt. Correctness is guaranteed through retries and bounded iteration, but pathological inputs may require increasing `max_retries`.
-- **Not a cryptographic tool:** this library is intended for mathematical and educational use. It does not implement constant-time operations or side-channel protections.
+| Limitation | Impact | Mitigation |
+|------------|--------|------------|
+| Pure Python, no C extensions | Slower than GMP-based alternatives on very large numbers (>10^20) | Use `gmpy2` or `sympy` for large inputs |
+| Recursive `_factor_yield` | Numbers with many small factors may approach `sys.getrecursionlimit()` | Increase recursion limit: `sys.setrecursionlimit(10_000)` |
+| Negative CLI input | `typer` interprets leading `-` as an option flag; negatives cannot be passed directly | Use the library API or `--` separator |
+| Probabilistic algorithm | Pollard-Brent is probabilistic per attempt; pathological inputs may need tuning | Increase `max_retries` or `max_iterations` in `FactoriserConfig` |
+| Not cryptographically reviewed | No constant-time operations or side-channel hardening | Intended for mathematical/educational use only |
 
 ---
 
 ## License
 
-MIT
+MIT License. See [LICENSE](LICENSE).

@@ -2,45 +2,77 @@ name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "master" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "master" ]
 
 jobs:
-  test-and-lint:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+    - name: Install dependencies
+      run: pip install ".[dev]"
+    - name: Run ruff check
+      run: ruff check src/ tests/ benchmarks/
+    - name: Run ruff format check
+      run: ruff format --check src/ tests/ benchmarks/
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+    - name: Install dependencies
+      run: pip install ".[dev]"
+    - name: Run MyPy type checker
+      run: mypy src/ tests/ benchmarks/
+
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
-
     steps:
     - uses: actions/checkout@v6
-
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v6
       with:
         python-version: ${{ matrix.python-version }}
         cache: 'pip'
-
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install ".[dev]"
-
-    - name: Run Black Formatter Check
-      run: black --check src/ tests/ benchmarks/
-
-    - name: Run isort Import Check
-      run: isort --check src/ tests/ benchmarks/
-
-    - name: Run Flake8 Linter
-      run: flake8 --extend-ignore=E501 src/ tests/ benchmarks/
-
-    - name: Run Pylint
-      run: pylint src/ tests/ benchmarks/
-
-    - name: Run MyPy Type Checker
-      run: mypy src/ tests/ benchmarks/
-
+      run: pip install ".[dev]"
     - name: Run Pytest Test Suite
-      run: pytest --cov=factorise -v tests/
+      run: pytest --cov=factorise --cov-fail-under=90 -v tests/
+
+  build:
+    needs: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - uses: actions/checkout@v6
+    - name: Set up Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+    - name: Install dependencies
+      run: pip install build
+    - name: Build sdist and wheel
+      run: python -m build
+    - name: Check dist artifacts
+      run: pip install twine && twine check dist/*
+    - name: Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+      run: twine upload dist/*

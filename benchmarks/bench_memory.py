@@ -37,10 +37,8 @@ RESULT_OBJECT_LIMIT_BYTES: int = 1024
 BATCH_SIZES_FOR_MEMORY: list[int] = [10, 50, 100]
 BATCH_INPUT: int = 123_456_789
 
-ALL_IS_PRIME: list[tuple[
-    str, int]] = IS_PRIME_SMALL + IS_PRIME_MEDIUM + IS_PRIME_LARGE
-ALL_FACTORISE: list[tuple[
-    str, int]] = FACTORISE_SMALL + FACTORISE_MEDIUM + FACTORISE_LARGE
+ALL_IS_PRIME: list[tuple[str, int]] = IS_PRIME_SMALL + IS_PRIME_MEDIUM + IS_PRIME_LARGE
+ALL_FACTORISE: list[tuple[str, int]] = FACTORISE_SMALL + FACTORISE_MEDIUM + FACTORISE_LARGE
 
 
 @dataclass
@@ -75,11 +73,8 @@ class MemorySnapshot:
         return cls(peak_bytes=peak, peak_kb=peak / 1024)
 
 
-@pytest.mark.parametrize("label,n",
-                         ALL_IS_PRIME,
-                         ids=[x[0] for x in ALL_IS_PRIME])
-def test_memory_is_prime(label: str, n: int,
-                         capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize("label,n", ALL_IS_PRIME, ids=[x[0] for x in ALL_IS_PRIME])
+def test_memory_is_prime(label: str, n: int, capsys: pytest.CaptureFixture[str]) -> None:
     """Verify is_prime operates strictly under the maximum memory threshold.
 
     Args:
@@ -98,11 +93,8 @@ def test_memory_is_prime(label: str, n: int,
     assert snap.peak_bytes < MAX_ALLOCATION_BYTES, error_msg
 
 
-@pytest.mark.parametrize("label,n",
-                         ALL_FACTORISE,
-                         ids=[x[0] for x in ALL_FACTORISE])
-def test_memory_factorise(label: str, n: int,
-                          capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize("label,n", ALL_FACTORISE, ids=[x[0] for x in ALL_FACTORISE])
+def test_memory_factorise(label: str, n: int, capsys: pytest.CaptureFixture[str]) -> None:
     """Verify factorise operates under the maximum memory threshold across scales.
 
     Args:
@@ -121,11 +113,8 @@ def test_memory_factorise(label: str, n: int,
     assert snap.peak_bytes < MAX_ALLOCATION_BYTES, error_msg
 
 
-@pytest.mark.parametrize("label,n",
-                         SCALABILITY_INPUTS,
-                         ids=[x[0] for x in SCALABILITY_INPUTS])
-def test_memory_scalability(label: str, n: int,
-                            capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize("label,n", SCALABILITY_INPUTS, ids=[x[0] for x in SCALABILITY_INPUTS])
+def test_memory_scalability(label: str, n: int, capsys: pytest.CaptureFixture[str]) -> None:
     """Ensure algorithm scalability retains O(1) memory boundaries.
 
     Args:
@@ -138,16 +127,14 @@ def test_memory_scalability(label: str, n: int,
     """
     snap = MemorySnapshot.measure(factorise, n, DEFAULT_CONFIG)
     with capsys.disabled():
-        print(
-            f"\n  factorise scalability [{label}]: peak={snap.peak_kb:.1f} KB")
+        print(f"\n  factorise scalability [{label}]: peak={snap.peak_kb:.1f} KB")
     assert snap.peak_bytes < MAX_ALLOCATION_BYTES
 
 
-@pytest.mark.parametrize("count",
-                         BATCH_SIZES_FOR_MEMORY,
-                         ids=[f"batch_{c}" for c in BATCH_SIZES_FOR_MEMORY])
-def test_memory_no_growth_in_batch(count: int,
-                                   capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize(
+    "count", BATCH_SIZES_FOR_MEMORY, ids=[f"batch_{c}" for c in BATCH_SIZES_FOR_MEMORY]
+)
+def test_memory_no_growth_in_batch(count: int, capsys: pytest.CaptureFixture[str]) -> None:
     """Verify peak memory does not grow proportionally with successive iteration.
 
     Args:
