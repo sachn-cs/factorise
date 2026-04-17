@@ -3,157 +3,249 @@ name: CI
 on:
   push:
     branches: ["master"]
+    tags:
+      - "v*.*.*"
   pull_request:
     branches: ["master"]
 
-# Cancel in-progress runs for PRs to save resources and reduce noise
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 env:
-  # Ensure deterministic behaviour and suppress noisy upgrade checks
   PYTHONUNBUFFERED: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_CACHE_DIR: "false"
 
 jobs:
   lint-and-typecheck:
+    name: Lint / Type Check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: pyproject.toml
-      # Fast setup using prebuilt binary for execution orchestration
+          cache-dependency-path: |
+            pyproject.toml
+
       - name: Install just
         uses: taiki-e/install-action@just
+
       - name: Install dependencies
         run: just install
-      # Fails fast on syntax or style errors before deep checks
-      - name: Run Ruff linter
+
+      - name: Ruff
         run: just lint
-      - name: Run MyPy type checker
+
+      - name: MyPy
         run: just type-check
 
-
-  # Centralised test suite across supported matrix
   test:
+    name: Tests (Py${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     strategy:
-      fail-fast: false # Allow other versions to finish and report even if one version fails
+      fail-fast: false
       matrix:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+
       - name: Install just
         uses: taiki-e/install-action@just
+
       - name: Install dependencies
         run: just install
-      # We decouple test runner args in workflow to preserve matrix-specific outputs
-      - name: Run Pytest Test Suite
+
+      - name: Run tests
         run: |
-          pytest --cov=factorise --cov-fail-under=90 --junitxml=test-results-${{ matrix.python-version }}.xml -v tests/
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v4
+          pytest \
+            --cov=factorise \
+            --cov-fail-under=90 \
+            --junitxml=test-results-${{ matrix.python-version }}.xml \
+            -v tests/
+
+      - name: Upload junit xml
         if: always()
+        uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.python-version }}
           path: test-results-${{ matrix.python-version }}.xml
 
-  security-and-stress:
+  security:
+    name: Security Audit
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit build
+
+      - name: Export runtime dependencies
+        run: |
+          python -m build --wheel --no-isolation
+          python -m pip install dist/*.whl
+          python -m pip freeze > requirements-audit.txt
+
+      - name: Remove local package from audit set
+        run: |
+          grep -vi '^factorise==' requirements-audit.txt > third-party.txt
+
+      - name: Audit dependencies
+        run: pip-audit --strict -r third-party.txt
+
+  stress:
+    name: Stress Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+
       - name: Install just
         uses: taiki-e/install-action@just
+
       - name: Install dependencies
         run: just install
-      # Security audit gate must pass to ensure no known CVEs
-      - name: Run security audit
-        run: just security
-      - name: Run stress correctness gate
+
+      - name: Run stress tests
         run: just stress-test
 
   build_release:
-    # Requires all previous gates to pass before proceeding
-    needs: [lint-and-typecheck, test, security-and-stress]
+    name: Build Release Artifacts
+    needs: [lint-and-typecheck, test, security, stress]
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     if: startsWith(github.ref, 'refs/tags/v')
-    permissions:
-      contents: read
+
     steps:
       - uses: actions/checkout@v4
-      # Hardcode epoch to ensure binary artifacts are reproducible bit-for-bit
-      - name: Derive reproducible build timestamp
+        with:
+          fetch-depth: 0
+
+      - name: Set reproducible timestamp
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
           cache: "pip"
-          cache-dependency-path: pyproject.toml
-      - name: Install just
-        uses: taiki-e/install-action@just
-      - name: Install dependencies
-        run: just install
-      - name: Build sdist and wheel
-        run: just build
-      # Ensure built artifacts don't have broken imports or missing files
-      - name: Test built wheel in isolated venv
+          cache-dependency-path: |
+            pyproject.toml
+
+      - name: Install build tooling
         run: |
-          python -m venv test_env
-          test_env/bin/pip install dist/*.whl pytest
-          test_env/bin/pytest -v tests/
-      - name: Check dist artifacts
+          python -m pip install --upgrade pip
+          python -m pip install build twine pytest
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Validate metadata
         run: twine check dist/*
-      - name: Generate SBOM (CycloneDX)
-        run: cyclonedx-py environment --output-format JSON --output-file dist/sbom.cdx.json
-      # Hashes safeguard against silent artifact corruption post-build
-      - name: Generate artifact checksums
+
+      - name: Test wheel in isolated env
+        run: |
+          python -m venv wheel_env
+          wheel_env/bin/pip install dist/*.whl pytest
+          mkdir wheel_test
+          cp -r tests wheel_test/
+          cd wheel_test
+          ../wheel_env/bin/pytest -v tests
+
+      - name: Test sdist in isolated env
+        run: |
+          python -m venv sdist_env
+          sdist_env/bin/pip install dist/*.tar.gz pytest
+          mkdir sdist_test
+          cp -r tests sdist_test/
+          cd sdist_test
+          ../sdist_env/bin/pytest -v tests
+
+      - name: Generate SBOM
+        run: |
+          python -m pip install cyclonedx-bom
+          cyclonedx-py environment \
+            --output-format JSON \
+            --output-file dist/sbom.cdx.json
+
+      - name: Generate checksums
         run: sha256sum dist/* > dist/SHA256SUMS
-      - name: Upload release artifacts
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: dist/*
 
   publish:
-    needs: [build_release]
+    name: Publish to PyPI
+    needs: build_release
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: startsWith(github.ref, 'refs/tags/v')
+
     permissions:
-      # OIDC id-tokens required for PyPI Trusted Publishers
-      id-token: write
       contents: read
+      id-token: write
+
     environment:
       name: pypi
+
     steps:
-      - name: Download release artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           name: release-artifacts
           path: dist
+
       - name: Prepare publish directory
         run: |
-          mkdir -p publish
-          cp dist/*.whl publish/ || true
-          cp dist/*.tar.gz publish/ || true
-      - name: Publish package via trusted publishing
+          mkdir publish
+          cp dist/*.whl publish/
+          cp dist/*.tar.gz publish/
+
+      - name: Publish package
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: publish
