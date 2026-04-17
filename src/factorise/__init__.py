@@ -7,4 +7,7 @@ from factorise.core import factorise
 from factorise.core import is_prime
 
 __version__ = "0.1.0"
-__all__ = ["FactorisationError", "FactorisationResult", "FactoriserConfig", "factorise", "is_prime"]
+__all__ = [
+    "FactorisationError", "FactorisationResult", "FactoriserConfig",
+    "factorise", "is_prime"
+]

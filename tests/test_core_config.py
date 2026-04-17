@@ -22,7 +22,15 @@ def test_config_custom_values() -> None:
 
 @pytest.mark.parametrize(
     "kwargs",
-    [{"batch_size": 0}, {"batch_size": -1}, {"max_iterations": 0}, {"max_retries": 0}],
+    [{
+        "batch_size": 0
+    }, {
+        "batch_size": -1
+    }, {
+        "max_iterations": 0
+    }, {
+        "max_retries": 0
+    }],
 )
 def test_config_invalid_raises(kwargs: dict[str, int]) -> None:
     with pytest.raises(ValueError):
@@ -72,7 +80,8 @@ def test_result_expression_prime() -> None:
     assert res.expression() == "7"
 
 
-@pytest.mark.parametrize("bad", [None, 1.5, "12", [12], (12,), {12}, True, False])
+@pytest.mark.parametrize("bad",
+                         [None, 1.5, "12", [12], (12,), {12}, True, False])
 def test_validate_int_rejects_non_int(bad: object) -> None:
     with pytest.raises(TypeError):
         validate_int(bad)

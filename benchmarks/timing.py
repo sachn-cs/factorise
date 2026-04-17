@@ -55,8 +55,11 @@ REPEATED_CALLS: int = 10
 CACHING_TEST_NUMBER: int = 123_456_789
 
 
-@pytest.mark.parametrize("_label,n", IS_PRIME_SMALL, ids=[x[0] for x in IS_PRIME_SMALL])
-def test_bench_is_prime_small(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         IS_PRIME_SMALL,
+                         ids=[x[0] for x in IS_PRIME_SMALL])
+def test_bench_is_prime_small(benchmark: Callable[..., Any], _label: str,
+                              n: int) -> None:
     """Benchmark is_prime on small inputs.
 
     Args:
@@ -67,8 +70,11 @@ def test_bench_is_prime_small(benchmark: Callable[..., Any], _label: str, n: int
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n", IS_PRIME_MEDIUM, ids=[x[0] for x in IS_PRIME_MEDIUM])
-def test_bench_is_prime_medium(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         IS_PRIME_MEDIUM,
+                         ids=[x[0] for x in IS_PRIME_MEDIUM])
+def test_bench_is_prime_medium(benchmark: Callable[..., Any], _label: str,
+                               n: int) -> None:
     """Benchmark is_prime on medium inputs.
 
     Args:
@@ -79,8 +85,11 @@ def test_bench_is_prime_medium(benchmark: Callable[..., Any], _label: str, n: in
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n", IS_PRIME_LARGE, ids=[x[0] for x in IS_PRIME_LARGE])
-def test_bench_is_prime_large(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         IS_PRIME_LARGE,
+                         ids=[x[0] for x in IS_PRIME_LARGE])
+def test_bench_is_prime_large(benchmark: Callable[..., Any], _label: str,
+                              n: int) -> None:
     """Benchmark is_prime on large inputs.
 
     Args:
@@ -91,8 +100,11 @@ def test_bench_is_prime_large(benchmark: Callable[..., Any], _label: str, n: int
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n", FACTORISE_SMALL, ids=[x[0] for x in FACTORISE_SMALL])
-def test_bench_factorise_small(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         FACTORISE_SMALL,
+                         ids=[x[0] for x in FACTORISE_SMALL])
+def test_bench_factorise_small(benchmark: Callable[..., Any], _label: str,
+                               n: int) -> None:
     """Benchmark factorise on small inputs.
 
     Args:
@@ -103,8 +115,11 @@ def test_bench_factorise_small(benchmark: Callable[..., Any], _label: str, n: in
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n", FACTORISE_MEDIUM, ids=[x[0] for x in FACTORISE_MEDIUM])
-def test_bench_factorise_medium(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         FACTORISE_MEDIUM,
+                         ids=[x[0] for x in FACTORISE_MEDIUM])
+def test_bench_factorise_medium(benchmark: Callable[..., Any], _label: str,
+                                n: int) -> None:
     """Benchmark factorise on medium inputs.
 
     Args:
@@ -115,8 +130,11 @@ def test_bench_factorise_medium(benchmark: Callable[..., Any], _label: str, n: i
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n", FACTORISE_LARGE, ids=[x[0] for x in FACTORISE_LARGE])
-def test_bench_factorise_large(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         FACTORISE_LARGE,
+                         ids=[x[0] for x in FACTORISE_LARGE])
+def test_bench_factorise_large(benchmark: Callable[..., Any], _label: str,
+                               n: int) -> None:
     """Benchmark factorise on large inputs.
 
     Args:
@@ -127,8 +145,11 @@ def test_bench_factorise_large(benchmark: Callable[..., Any], _label: str, n: in
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n", POLLARD_INPUTS, ids=[x[0] for x in POLLARD_INPUTS])
-def test_bench_pollard_brent(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         POLLARD_INPUTS,
+                         ids=[x[0] for x in POLLARD_INPUTS])
+def test_bench_pollard_brent(benchmark: Callable[..., Any], _label: str,
+                             n: int) -> None:
     """Benchmark isolated pollard_brent cycle detection.
 
     Args:
@@ -161,8 +182,11 @@ def test_bench_batch_throughput(benchmark: Callable[..., Any]) -> None:
     benchmark(_run_batch, WORKLOAD_MIX, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n", SCALABILITY_INPUTS, ids=[x[0] for x in SCALABILITY_INPUTS])
-def test_bench_scalability(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         SCALABILITY_INPUTS,
+                         ids=[x[0] for x in SCALABILITY_INPUTS])
+def test_bench_scalability(benchmark: Callable[..., Any], _label: str,
+                           n: int) -> None:
     """Benchmark logarithmically spaced inputs to show O(n^1/4) growth.
 
     Args:
@@ -173,8 +197,11 @@ def test_bench_scalability(benchmark: Callable[..., Any], _label: str, n: int) -
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("batch_size", BATCH_SIZES, ids=[f"batch_{b}" for b in BATCH_SIZES])
-def test_bench_batch_size_sensitivity(benchmark: Callable[..., Any], batch_size: int) -> None:
+@pytest.mark.parametrize("batch_size",
+                         BATCH_SIZES,
+                         ids=[f"batch_{b}" for b in BATCH_SIZES])
+def test_bench_batch_size_sensitivity(benchmark: Callable[..., Any],
+                                      batch_size: int) -> None:
     """Display how different FACTORISE_BATCH_SIZE values affect throughput.
 
     Args:
@@ -185,8 +212,11 @@ def test_bench_batch_size_sensitivity(benchmark: Callable[..., Any], batch_size:
     benchmark(factorise, SEMIPRIME_LARGE, config)
 
 
-@pytest.mark.parametrize("_label,n", PERFECT_SQUARES, ids=[x[0] for x in PERFECT_SQUARES])
-def test_bench_perfect_squares(benchmark: Callable[..., Any], _label: str, n: int) -> None:
+@pytest.mark.parametrize("_label,n",
+                         PERFECT_SQUARES,
+                         ids=[x[0] for x in PERFECT_SQUARES])
+def test_bench_perfect_squares(benchmark: Callable[..., Any], _label: str,
+                               n: int) -> None:
     """Benchmark perfect squares hitting the isqrt fast path directly.
 
     Args:

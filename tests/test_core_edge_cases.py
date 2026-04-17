@@ -40,30 +40,40 @@ def test_validate_int_boolean() -> None:
 # Internal API contracts may change without notice.
 def test_pollard_brent_attempt_iteration_cap() -> None:
     config = FactoriserConfig(max_iterations=1, batch_size=1)
-    result = pollard_brent_attempt(LARGE_COMPOSITE, 2, 1, config, max_iterations=1)
+    result = pollard_brent_attempt(LARGE_COMPOSITE,
+                                   2,
+                                   1,
+                                   config,
+                                   max_iterations=1)
     assert result.status is AttemptStatus.ITERATION_CAP_HIT
 
 
 def test_pollard_brent_attempt_backtrack_cap() -> None:
     config = FactoriserConfig(max_iterations=1, batch_size=1)
     with patch("math.gcd", side_effect=[COLLAPSE_N, 1]):
-        result = pollard_brent_attempt(COLLAPSE_N, 2, 1, config, max_iterations=1)
+        result = pollard_brent_attempt(COLLAPSE_N,
+                                       2,
+                                       1,
+                                       config,
+                                       max_iterations=1)
         assert result.status is AttemptStatus.ITERATION_CAP_HIT
 
 
 def test_pollard_brent_trial_division_path() -> None:
     config = FactoriserConfig()
     assert pollard_brent(PRIMES_IN_LIST * 2, config) == 2
-    assert pollard_brent(PRIMES_IN_LIST * PRIMES_IN_LIST, config) == PRIMES_IN_LIST
+    assert pollard_brent(PRIMES_IN_LIST * PRIMES_IN_LIST,
+                         config) == PRIMES_IN_LIST
 
 
 def test_pollard_brent_runtime_error_exhaustion() -> None:
     config = FactoriserConfig(max_retries=1, max_iterations=1)
     with patch("factorise.core.is_prime", return_value=False):
-        failed_attempt = AttemptResult(
-            status=AttemptStatus.ALGORITHM_FAILURE, iterations_used=1, factor=None
-        )
-        with patch("factorise.core.pollard_brent_attempt", return_value=failed_attempt):
+        failed_attempt = AttemptResult(status=AttemptStatus.ALGORITHM_FAILURE,
+                                       iterations_used=1,
+                                       factor=None)
+        with patch("factorise.core.pollard_brent_attempt",
+                   return_value=failed_attempt):
             with pytest.raises(RuntimeError) as excinfo:
                 pollard_brent(8051, config)
             assert "failed" in str(excinfo.value)
