@@ -18,7 +18,11 @@ permissions:
 env:
   PYTHONUNBUFFERED: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_CACHE_DIR: "false"
+
+  # Prevent setup-python cache probe failure:
+  # logs show `pip cache dir` exits because cache is disabled.
+  # Do NOT set PIP_NO_CACHE_DIR anywhere.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   lint-and-typecheck:
@@ -27,10 +31,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
@@ -40,7 +44,7 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
 
-      - name: Install dependencies
+      - name: Install project
         run: just install
 
       - name: Ruff
@@ -60,10 +64,10 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
@@ -73,23 +77,25 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
 
-      - name: Install dependencies
+      - name: Install project
         run: just install
 
       - name: Run tests
         run: |
           pytest \
             --cov=factorise \
+            --cov-report=term-missing \
             --cov-fail-under=90 \
             --junitxml=test-results-${{ matrix.python-version }}.xml \
             -v tests/
 
-      - name: Upload junit xml
+      - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.python-version }}
           path: test-results-${{ matrix.python-version }}.xml
+          if-no-files-found: warn
 
   security:
     name: Security Audit
@@ -97,33 +103,25 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
           cache-dependency-path: |
             pyproject.toml
 
-      - name: Install tooling
+      - name: Install audit tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pip-audit build
+          python -m pip install pip-audit
 
-      - name: Export runtime dependencies
-        run: |
-          python -m build --wheel --no-isolation
-          python -m pip install dist/*.whl
-          python -m pip freeze > requirements-audit.txt
-
-      - name: Remove local package from audit set
-        run: |
-          grep -vi '^factorise==' requirements-audit.txt > third-party.txt
-
-      - name: Audit dependencies
-        run: pip-audit --strict -r third-party.txt
+      # Permanent fix for local-package pip-audit failure:
+      # audit declared third-party deps only, not editable local package.
+      - name: Audit third-party dependencies
+        run: pip-audit --strict .
 
   stress:
     name: Stress Tests
@@ -131,10 +129,10 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
@@ -144,21 +142,25 @@ jobs:
       - name: Install just
         uses: taiki-e/install-action@just
 
-      - name: Install dependencies
+      - name: Install project
         run: just install
 
       - name: Run stress tests
         run: just stress-test
 
   build_release:
-    name: Build Release Artifacts
-    needs: [lint-and-typecheck, test, security, stress]
+    name: Build Release
+    needs:
+      - lint-and-typecheck
+      - test
+      - security
+      - stress
     runs-on: ubuntu-latest
     timeout-minutes: 25
     if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -166,7 +168,7 @@ jobs:
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: "pip"
@@ -178,48 +180,41 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build twine pytest
 
-      - name: Build sdist and wheel
+      - name: Build distributions
         run: python -m build
 
       - name: Validate metadata
         run: twine check dist/*
 
-      - name: Test wheel in isolated env
+      - name: Test wheel install
         run: |
           python -m venv wheel_env
           wheel_env/bin/pip install dist/*.whl pytest
-          mkdir wheel_test
-          cp -r tests wheel_test/
-          cd wheel_test
+          mkdir verify-wheel
+          cp -r tests verify-wheel/
+          cd verify-wheel
           ../wheel_env/bin/pytest -v tests
 
-      - name: Test sdist in isolated env
+      - name: Test sdist install
         run: |
           python -m venv sdist_env
           sdist_env/bin/pip install dist/*.tar.gz pytest
-          mkdir sdist_test
-          cp -r tests sdist_test/
-          cd sdist_test
+          mkdir verify-sdist
+          cp -r tests verify-sdist/
+          cd verify-sdist
           ../sdist_env/bin/pytest -v tests
-
-      - name: Generate SBOM
-        run: |
-          python -m pip install cyclonedx-bom
-          cyclonedx-py environment \
-            --output-format JSON \
-            --output-file dist/sbom.cdx.json
 
       - name: Generate checksums
         run: sha256sum dist/* > dist/SHA256SUMS
 
-      - name: Upload artifacts
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
           path: dist/*
 
   publish:
-    name: Publish to PyPI
+    name: Publish PyPI
     needs: build_release
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -245,7 +240,7 @@ jobs:
           cp dist/*.whl publish/
           cp dist/*.tar.gz publish/
 
-      - name: Publish package
+      - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: publish
