@@ -17,7 +17,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `is_prime(n)` — deterministic Miller-Rabin test valid for all n < 2^64
 - `validate_int(value, name)` — typed input guard (rejects bool, float, str)
 - `pollard_brent(n, config)` — Brent's Pollard Rho with GCD batching and bounded retries
-- `pollard_brent_attempt(n, y, c, config)` — single cycle-detection pass
+- `pollard_brent_attempt(n, y, c, config, max_iterations)` — single cycle-detection pass
 - `factor_flatten(n, config)` — recursive prime splitter
 - CLI via `factorise <number>` with `--verbose` and `--log-level` options
 - SIGINT / SIGTERM graceful shutdown in CLI
@@ -26,7 +26,7 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Exhaustive documentation suite in `docs/` (Miller-Rabin, Pollard-Brent depth)
 - Timing benchmarks via `pytest-benchmark` (43 cases)
 - Memory benchmarks via `tracemalloc` (34 cases)
-- `stress_test.py` for scalable multicore validation across billions of integers
+- `benchmarks/stress.py` for scalable multicore validation
 - Full README with premium badges and operational guide
 - PEP 561 `py.typed` marker
 - MIT License

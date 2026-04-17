@@ -1,0 +1,57 @@
+"""Primality testing behavior for factorise.core.is_prime."""
+
+import math
+
+import pytest
+
+from factorise.core import is_prime
+
+SMALL_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
+SMALL_COMPOSITES = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 25, 49, 77, 100]
+
+
+def _is_prime_naive(n: int) -> bool:
+    if n < 2:
+        return False
+    return all(n % i != 0 for i in range(2, math.isqrt(n) + 1))
+
+
+@pytest.mark.parametrize("n", [-1000000, -1, 0, 1])
+def test_is_prime_below_two_is_false(n: int) -> None:
+    assert is_prime(n) is False
+
+
+@pytest.mark.parametrize("p", SMALL_PRIMES)
+def test_is_prime_small_primes(p: int) -> None:
+    assert is_prime(p) is True
+
+
+@pytest.mark.parametrize("c", SMALL_COMPOSITES)
+def test_is_prime_small_composites(c: int) -> None:
+    assert is_prime(c) is False
+
+
+def test_is_prime_agrees_with_naive_up_to_500() -> None:
+    for n in range(2, 501):
+        assert is_prime(n) == _is_prime_naive(n), f"Mismatch at n={n}"
+
+
+@pytest.mark.parametrize("p", [10**9 + 7, 10**9 + 9, 2**31 - 1, 32416189987])
+def test_is_prime_large_primes(p: int) -> None:
+    assert is_prime(p) is True
+
+
+@pytest.mark.parametrize("c", [10**9 + 8, 4000000000, 2**31, 100000000000])
+def test_is_prime_large_composites(c: int) -> None:
+    assert is_prime(c) is False
+
+
+@pytest.mark.parametrize("bad", [None, 1.5, "5", [], True, False])
+def test_is_prime_invalid_type_raises(bad: object) -> None:
+    with pytest.raises(TypeError):
+        is_prime(bad)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("n", [97, 121, 2**31 - 1, 10**9 + 7])
+def test_is_prime_is_deterministic(n: int) -> None:
+    assert len({is_prime(n) for _ in range(20)}) == 1

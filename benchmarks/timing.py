@@ -1,7 +1,7 @@
 """Timing benchmarks for the factorise package using pytest-benchmark.
 
 Run with:
-    pytest benchmarks/bench_timing.py --benchmark-only -v
+    pytest benchmarks/timing.py --benchmark-only -v
 """
 
 from collections.abc import Callable
@@ -9,17 +9,17 @@ from typing import Any
 
 import pytest
 
-from factorise.core import FactoriserConfig, factorise, is_prime, pollard_brent
-
-from .inputs import (
-    FACTORISE_LARGE,
-    FACTORISE_MEDIUM,
-    FACTORISE_SMALL,
-    IS_PRIME_LARGE,
-    IS_PRIME_MEDIUM,
-    IS_PRIME_SMALL,
-    SCALABILITY_INPUTS,
-)
+from benchmarks.inputs import FACTORISE_LARGE
+from benchmarks.inputs import FACTORISE_MEDIUM
+from benchmarks.inputs import FACTORISE_SMALL
+from benchmarks.inputs import IS_PRIME_LARGE
+from benchmarks.inputs import IS_PRIME_MEDIUM
+from benchmarks.inputs import IS_PRIME_SMALL
+from benchmarks.inputs import SCALABILITY_INPUTS
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
+from factorise.core import is_prime
+from factorise.core import pollard_brent
 
 DEFAULT_CONFIG: FactoriserConfig = FactoriserConfig()
 
@@ -51,7 +51,7 @@ PERFECT_SQUARES: list[tuple[str, int]] = [
     ("sq_large", 99_991**2),
 ]
 
-REPEATED_CALS: int = 10
+REPEATED_CALLS: int = 10
 CACHING_TEST_NUMBER: int = 123_456_789
 
 
@@ -206,7 +206,7 @@ def test_bench_no_caching(benchmark: Callable[..., Any]) -> None:
 
     def repeated() -> None:
         """Call factorise multiple times uniformly."""
-        for _ in range(REPEATED_CALS):
+        for _ in range(REPEATED_CALLS):
             factorise(CACHING_TEST_NUMBER, DEFAULT_CONFIG)
 
     benchmark(repeated)

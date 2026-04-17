@@ -9,6 +9,7 @@ type-safe, explicit configuration and results without global state.
 """
 
 import dataclasses
+import enum
 import math
 import os
 import random
@@ -20,12 +21,39 @@ from loguru import logger
 # The set of witnesses that makes Miller-Rabin deterministic for n < 2^64.
 WITNESSES: tuple[int, ...] = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
 WITNESSES_SET: frozenset[int] = frozenset(WITNESSES)
+TRIAL_DIVISION_PRIMES: tuple[int, ...] = (
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+    41,
+    43,
+    47,
+    53,
+    59,
+    61,
+    67,
+    71,
+    73,
+)
 
 logger.disable("factorise")
 
 # ---------------------------------------------------------------------------
 # Result type — the single, explicit return value of factorise().
 # ---------------------------------------------------------------------------
+
+
+class FactorisationError(RuntimeError):
+    """Raised when factorisation exceeds the configured computational budget."""
 
 
 @dataclasses.dataclass(frozen=True)
@@ -48,7 +76,7 @@ class FactorisationResult:
 
     def expression(self) -> str:
         """Return a readable prime product string, e.g. '-1 * 2^2 * 3'."""
-        terms = [f"{p}^{e}" if e > 1 else str(p) for p, e in self.powers.items()]
+        terms = [f"{p}^{e}" if e > 1 else str(p) for p, e in sorted(self.powers.items())]
         prefix = "-1 * " if self.sign == -1 else ""
         return prefix + " * ".join(terms)
 
@@ -69,19 +97,21 @@ class FactoriserConfig:
         batch_size: GCD operations to batch per iteration (throughput knob).
         max_iterations: Hard cap on inner steps per Pollard-Brent attempt.
         max_retries: How many fresh random seeds to try before giving up.
+        seed: Optional deterministic seed base for reproducible retries.
     """
 
     batch_size: int = 128
     max_iterations: int = 10_000_000
     max_retries: int = 20
+    seed: int | None = None
 
     def __post_init__(self) -> None:
         """Validate fields immediately — fail fast at construction time."""
         if self.batch_size < 1 or self.batch_size > 10_000:
             raise ValueError(f"batch_size must be >= 1 and <= 10_000, got {self.batch_size}")
-        if self.max_iterations < 1 or self.max_iterations > 1_000_000_000:
+        if self.max_iterations < 1 or self.max_iterations > 100_000_000:
             raise ValueError(
-                f"max_iterations must be >= 1 and <= 1_000_000_000, got {self.max_iterations}"
+                f"max_iterations must be >= 1 and <= 100_000_000, got {self.max_iterations}"
             )
         if self.max_retries < 1 or self.max_retries > 100:
             raise ValueError(f"max_retries must be >= 1 and <= 100, got {self.max_retries}")
@@ -95,10 +125,12 @@ class FactoriserConfig:
         Raises:
             ValueError: If any environment variable holds an invalid value.
         """
+        seed = os.getenv("FACTORISE_SEED")
         return cls(
             batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
             max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS", "10000000")),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
+            seed=int(seed) if seed is not None else None,
         )
 
 
@@ -172,26 +204,47 @@ def is_prime(n: int) -> bool:
 # ---------------------------------------------------------------------------
 
 
+class AttemptStatus(enum.Enum):
+    """Failure modes for a single Pollard-Brent attempt."""
+    SUCCESS = enum.auto()
+    ALGORITHM_FAILURE = enum.auto()
+    ITERATION_CAP_HIT = enum.auto()
+
+
+@dataclasses.dataclass(frozen=True)
+class AttemptResult:
+    """Result of a single Pollard-Brent attempt."""
+    status: AttemptStatus
+    iterations_used: int
+    factor: int | None = None
+
+
 def pollard_brent_attempt(
     n: int,
     y: int,
     c: int,
     config: FactoriserConfig,
-) -> int | None:
+    max_iterations: int,
+) -> AttemptResult:
     """One cycle-detection run of Brent's Pollard Rho variant.
 
-    Batches GCD computations for throughput, backtracks when necessary,
-    and returns None if the iteration budget is exceeded.
+    Batches GCD computations for throughput and reports explicit status
+    for success, iteration cap exhaustion, or algorithmic failure.
 
     Args:
         n: The composite integer to split (must be odd and non-prime).
         y: Starting point in [1, n-1].
         c: Polynomial shift constant in [1, n-1].
         config: Algorithm parameters.
+        max_iterations: Maximum allowed iterations for this attempt.
 
     Returns:
-        A factor g with 1 < g < n, or None if this attempt failed.
+        An AttemptResult containing the outcome and iterations used.
     """
+    validate_int(n)
+    if not isinstance(config, FactoriserConfig):
+        raise TypeError(f"config must be FactoriserConfig, got {type(config).__name__!r}")
+
     g, r, q = 1, 1, 1
     x, ys = 0, 0
     iterations = 0
@@ -205,14 +258,14 @@ def pollard_brent_attempt(
         while k < r and g == 1:
             ys = y
             batch_limit = min(config.batch_size, r - k)
-            if iterations + batch_limit > config.max_iterations:
-                batch_limit = config.max_iterations - iterations
+            if iterations + batch_limit > max_iterations:
+                batch_limit = max_iterations - iterations
 
             if batch_limit <= 0:
                 logger.warning(
-                    "iteration cap n={n} limit={limit}", n=n, limit=config.max_iterations
+                    "iteration cap n={n} limit={limit}", n=n, limit=max_iterations
                 )
-                return None
+                return AttemptResult(AttemptStatus.ITERATION_CAP_HIT, iterations)
 
             for _ in range(batch_limit):
                 y = (y * y + c) % n
@@ -225,16 +278,22 @@ def pollard_brent_attempt(
 
     # The cycle collapsed into g == n — step back one at a time to recover.
     if g == n:
-        for _ in range(config.max_iterations):
+        backtrack_budget = max_iterations - iterations
+        if backtrack_budget <= 0:
+            return AttemptResult(AttemptStatus.ITERATION_CAP_HIT, iterations)
+        for _ in range(backtrack_budget):
             ys = (ys * ys + c) % n
+            iterations += 1
             g = math.gcd(abs(x - ys), n)
             if g > 1:
                 break
         else:
             logger.warning("backtrack cap n={n}", n=n)
-            return None
+            return AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations)
 
-    return g if 1 < g < n else None
+    if 1 < g < n:
+        return AttemptResult(AttemptStatus.SUCCESS, iterations, g)
+    return AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations)
 
 
 def pollard_brent(n: int, config: FactoriserConfig) -> int:
@@ -248,11 +307,15 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
         A non-trivial factor. Returns n itself when n is prime.
 
     Raises:
-        RuntimeError: If no factor is found within config.max_retries attempts.
+        FactorisationError: If no factor is found within config.max_retries attempts.
     """
+    validate_int(n)
+    if not isinstance(config, FactoriserConfig):
+        raise TypeError(f"config must be FactoriserConfig, got {type(config).__name__!r}")
+
     # Trial division fast-path for tiny primes
     # (Fixes Pollard's Rho cycle exhaustion on tiny fields like n=15, 35)
-    for p in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73):
+    for p in TRIAL_DIVISION_PRIMES:
         if n % p == 0:
             return p
     if is_prime(n):
@@ -262,18 +325,31 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
     if root * root == n:
         return root
 
+    remaining_iterations = config.max_iterations
+
     for attempt in range(1, config.max_retries + 1):
-        y = random.randint(1, n - 1)
-        c = random.randint(1, n - 1)
+        rng = random.Random(config.seed + attempt) if config.seed is not None else random
+        y = rng.randint(1, n - 1)
+        c = rng.randint(1, n - 1)
         logger.debug("attempt={attempt} n={n} y={y} c={c}", attempt=attempt, n=n, y=y, c=c)
 
-        factor = pollard_brent_attempt(n, y, c, config)
-        if factor is not None:
-            logger.debug("factor={factor} n={n}", factor=factor, n=n)
-            return factor
+        result = pollard_brent_attempt(n, y, c, config, remaining_iterations)
+        remaining_iterations -= result.iterations_used
 
-    raise RuntimeError(
-        f"pollard_brent failed for n={n} after {config.max_retries} attempts. "
+        if result.status == AttemptStatus.SUCCESS:
+            if result.factor is None:
+                raise FactorisationError(
+                    "pollard_brent returned SUCCESS without a factor; this is a bug."
+                )
+            logger.debug("factor={factor} n={n}", factor=result.factor, n=n)
+            return result.factor
+
+        if remaining_iterations <= 0 or result.status == AttemptStatus.ITERATION_CAP_HIT:
+            logger.error("global iteration cap hit for n={n}", n=n)
+            break
+
+    raise FactorisationError(
+        f"pollard_brent failed for n={n} after {attempt} attempts. "
         "Increase max_retries or max_iterations in FactoriserConfig."
     )
 
@@ -292,6 +368,7 @@ def _factor_yield(n: int, config: FactoriserConfig) -> Generator[int, None, None
     yield from _factor_yield(n // d, config)
 
 
+# Note: _factor_yield is a generator for memory efficiency on deeply nested factorisations.
 def factor_flatten(n: int, config: FactoriserConfig) -> list[int]:
     """Recursively split n until every part is prime.
 
@@ -303,6 +380,9 @@ def factor_flatten(n: int, config: FactoriserConfig) -> list[int]:
         A flat list of prime factors (unsorted, with repetition).
         Returns [] for n < 2.
     """
+    validate_int(n)
+    if not isinstance(config, FactoriserConfig):
+        raise TypeError(f"config must be FactoriserConfig, got {type(config).__name__!r}")
     return list(_factor_yield(n, config))
 
 
@@ -327,9 +407,11 @@ def factorise(
 
     Raises:
         TypeError: If n is not a plain int.
-        RuntimeError: If factorisation exhausts its retry budget.
+        FactorisationError: If factorisation exhausts its retry budget.
     """
     validate_int(n)
+    if config is not None and not isinstance(config, FactoriserConfig):
+        raise TypeError(f"config must be FactoriserConfig, got {type(config).__name__!r}")
     cfg = config if config is not None else FactoriserConfig.from_env()
     logger.info("factorise start n={n}", n=n)
 
@@ -343,8 +425,9 @@ def factorise(
         return FactorisationResult(original=n, sign=sign, factors=[], powers={}, is_prime=False)
 
     raw_factors = factor_flatten(abs_n, cfg)
-    powers = dict(Counter(raw_factors))
-    factors = sorted(powers.keys())
+    counts = Counter(raw_factors)
+    factors = sorted(counts.keys())
+    powers = {prime: counts[prime] for prime in factors}
     result = FactorisationResult(
         original=n,
         sign=sign,

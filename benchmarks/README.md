@@ -53,13 +53,13 @@ Measure execution speed using `pytest-benchmark`:
 
 ```bash
 # Run all timing benchmarks
-pytest benchmarks/bench_timing.py --benchmark-only -v
+pytest benchmarks/timing.py --benchmark-only -v
 
 # Run and sort results by mean execution time
-pytest benchmarks/bench_timing.py --benchmark-only --benchmark-sort=mean
+pytest benchmarks/timing.py --benchmark-only --benchmark-sort=mean
 
 # Generate a histogram of execution times
-pytest benchmarks/bench_timing.py --benchmark-only --benchmark-histogram
+pytest benchmarks/timing.py --benchmark-only --benchmark-histogram
 ```
 
 ### Memory Benchmarks
@@ -68,7 +68,7 @@ Measure peak allocation using `tracemalloc`:
 
 ```bash
 # Run all memory benchmarks and print allocation metrics
-pytest benchmarks/bench_memory.py -v -s
+pytest benchmarks/memory.py -v -s
 ```
 
 ### Multicore Stress Testing
@@ -76,11 +76,12 @@ pytest benchmarks/bench_memory.py -v -s
 To verify algorithmic stability and correctness at a massive scale, run the concurrent stress test tool. It divides the testing range across all available CPU cores and verifies that every output's prime factors mathematically reconstruct the original integer.
 
 ```bash
-# Run the massive 1-to-N validation stress test
-python3 benchmarks/stress_test.py
-```
+# Run the massive 1-to-N validation stress test with progress UI
+python -m benchmarks.stress
 
-*Note: The stress test uses Python's `ProcessPoolExecutor` directly and displays a live `rich` progress bar, so it does not require `pytest` to execute.*
+# CI correctness gate
+pytest benchmarks/stress.py::test_stress_correctness -v
+```
 
 ---
 
@@ -127,7 +128,7 @@ Where applicable, algorithms are tested against variables such as:
 2. Switch to your feature branch.
 3. Run benchmarks and compare:
    ```bash
-   pytest benchmarks/bench_timing.py --benchmark-only --benchmark-compare
+   pytest benchmarks/timing.py --benchmark-only --benchmark-compare
    ```
 
 ---
@@ -145,8 +146,8 @@ Performance measurements vary significantly based on hardware state. To ensure c
 ## Extending Benchmarks
 
 ### Where to add
-- **Timing:** Add functions starting with `test_bench_` in `bench_timing.py`.
-- **Memory:** Add functions starting with `test_memory_` in `bench_memory.py`.
+- **Timing:** Add functions starting with `test_bench_` in `timing.py`.
+- **Memory:** Add functions starting with `test_memory_` in `memory.py`.
 - **Inputs:** Define reusable input sets in `inputs.py`.
 
 ### Conventions

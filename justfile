@@ -2,45 +2,38 @@
 
 default: help
 
-# Run ruff linter
+# List all available commands
+help:
+    @just --list
+
+# Install all dependencies (dev + prod)
+install:
+    pip install -e ".[dev]"
+
+# Run Ruff linter (code quality)
 lint:
     ruff check src/ tests/ benchmarks/
 
-# Apply ruff formatting
+# Apply Ruff auto-fixes then format
 format:
+    ruff check --fix src/ tests/ benchmarks/
     ruff format src/ tests/ benchmarks/
 
-# Run mypy type checker
-typecheck:
+# Run mypy static type checker
+type-check:
     mypy src/ tests/ benchmarks/
 
-# Run test suite
+# Run dependency vulnerability scanning
+security:
+    pip-audit --strict
+
+# Run the pytest test suite
 test:
     pytest tests/ -v
 
-# Run tests with coverage report
-test-cov:
-    pytest --cov=factorise --cov-report=term-missing tests/
-
-# Run tests with coverage enforcement (CI threshold)
+# Run the pytest test suite with coverage enforcement
 test-ci:
-    pytest --cov=factorise --cov-fail-under=90 tests/
-
-# Run benchmarks
-benchmark:
-    pytest benchmarks/bench_timing.py --benchmark-only -v
-
-# Run memory benchmarks
-benchmark-memory:
-    pytest benchmarks/bench_memory.py -v
-
-# Run stress test (requires multiprocessing)
-stress-test:
-    python -m benchmarks.stress_test
-
-# Install all dependencies (dev + prod)
-dev-setup:
-    pip install -e ".[dev]"
+    pytest --cov=factorise --cov-fail-under=90 tests/ -v
 
 # Clean build artifacts and caches
 clean:
@@ -49,10 +42,30 @@ clean:
     find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
     find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-# Build sdist and wheel
-build:
-    pip install build && python -m build
+# Build sdist and wheel artifacts
+build: clean
+    python -m build
 
-# Run all CI checks locally
-ci: lint format typecheck test-ci
-    @echo "All CI checks passed."
+# Run benchmarks
+benchmark:
+    pytest benchmarks/timing.py --benchmark-only -v
+
+# Run memory benchmarks
+benchmark-memory:
+    pytest benchmarks/memory.py -v
+
+# Run stress tests
+stress-test:
+    python -m benchmarks.stress
+
+# Run all CI checks locally (fail-fast)
+ci: lint type-check test-ci
+    @echo "All fast CI checks passed."
+
+# Extended CI checks including stress and security
+ci-full: ci security stress-test
+    @echo "Full CI suite passed."
+
+# Run benchmarks with CI threshold checking
+benchmark-ci:
+    pytest benchmarks/timing.py --benchmark-only --benchmark-compare --benchmark-compare-fail=min:10% -v
