@@ -15,7 +15,6 @@ env:
   # Ensure deterministic behaviour and suppress noisy upgrade checks
   PYTHONUNBUFFERED: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
-  PIP_NO_CACHE_DIR: "off"
 
 jobs:
   lint-and-typecheck:
