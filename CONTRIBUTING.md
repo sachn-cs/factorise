@@ -37,7 +37,6 @@ pre-commit install
 |------|------|
 | `ruff` | Linting, import sorting, format |
 | `mypy` | Static type checking |
-| `black` | Code formatting (via ruff) |
 | `pytest` | Test execution |
 | `pytest-cov` | Coverage reporting |
 
@@ -56,14 +55,15 @@ On every commit, `ruff check`, `ruff format`, and `mypy src/` run automatically.
 Before opening a PR, run all checks locally:
 
 ```bash
-make ci
+just ci
 ```
 
 Or via the equivalent commands:
 
 ```bash
-ruff check src/ tests/ benchmarks/
-ruff format src/ tests/ benchmarks/
+ruff check src/ tests/ benchmarks/ scripts/
+python scripts/lint_import_policy.py src tests benchmarks scripts
+ruff format src/ tests/ benchmarks/ scripts/
 mypy src/ tests/ benchmarks/
 pytest --cov=factorise --cov-fail-under=90 tests/
 ```
@@ -72,9 +72,10 @@ pytest --cov=factorise --cov-fail-under=90 tests/
 
 - **Type hints** on all public functions and classes (PEP 484).
 - **Google-style docstrings** required on all public functions and classes.
+- **Import policy**: one import target per line, enforced by `scripts/lint_import_policy.py`.
 - **No booleans as integers**: `validate_int()` enforces plain `int` only; `bool` is rejected explicitly.
 - **No global state**: configuration is always passed explicitly via `FactoriserConfig`.
-- **`FactoriserConfig` upper bounds**: `batch_size ≤ 10_000`, `max_iterations ≤ 1_000_000_000`, `max_retries ≤ 100`.
+- **`FactoriserConfig` upper bounds**: `batch_size ≤ 10_000`, `max_iterations ≤ 100_000_000`, `max_retries ≤ 100`.
 
 ## Testing
 
@@ -86,11 +87,11 @@ pytest tests/ -v
 pytest --cov=factorise --cov-report=term-missing tests/
 
 # Run benchmarks
-pytest benchmarks/bench_timing.py --benchmark-only -v
-pytest benchmarks/bench_memory.py -v
+pytest benchmarks/timing.py --benchmark-only -v
+pytest benchmarks/memory.py -v
 
 # Run the stress test (requires multiprocessing)
-python -m benchmarks.stress_test
+python -m benchmarks.stress
 ```
 
 All new functionality requires tests. PRs with failing tests will not be merged. Coverage must not fall below 90%.
@@ -98,14 +99,16 @@ All new functionality requires tests. PRs with failing tests will not be merged.
 ## Pull Request Quality
 
 - All CI jobs must pass (`lint`, `typecheck`, `test`).
+- Release tags run trusted publishing (OIDC) and attach `SHA256SUMS` and `sbom.cdx.json` artifacts.
 - New algorithms must include a supporting document in `docs/`.
-- Large changes should be accompanied by a pass through the stress test (`python -m benchmarks.stress_test`).
+- Large changes should be accompanied by a pass through the stress test (`python -m benchmarks.stress`).
 - Commit messages should describe _why_, not _what_.
 
 ## Adding a New Algorithm
 
 1. Implement as a plain function in `core.py`; accept `FactoriserConfig` if tuneable.
-2. Return a factor or raise `RuntimeError` — do not return `None` silently on failure.
-3. Add tests covering correct output, edge cases, and failure modes in `tests/test_core.py`.
+2. Return a factor or raise `FactorisationError` — do not return ambiguous failure values.
+3. Add tests covering correct output, edge cases, and failure modes.
+   Prefer placing new tests into existing domain-focused modules under `tests/`.
 4. Export from `__init__.py` if it is part of the public API.
 5. Verify `ruff check`, `ruff format`, and `mypy src/` all pass.

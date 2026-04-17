@@ -1,5 +1,6 @@
 """Tests for factorise.cli."""
 
+from click.testing import Result as CliResult
 from typer.testing import CliRunner
 
 from factorise.cli import app
@@ -7,8 +8,8 @@ from factorise.cli import app
 runner = CliRunner()
 
 
-def invoke(*args: int | str) -> None:
-    """Verify functionality of invoke."""
+def invoke(*args: int | str) -> CliResult:
+    """Invoke the CLI app with the given arguments and return the result."""
     return runner.invoke(app, [str(a) for a in args])
 
 
