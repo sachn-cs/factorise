@@ -11,6 +11,6 @@ Currently, only the latest major version sequence of the software is formally su
 
 ## Reporting a Vulnerability
 
-If you discover any security-related issues, please do not report them through public GitHub issues. Instead, please email the maintainers at sachin@example.com.
+If you discover any security-related issues, please do not report them through public GitHub issues. Instead, please email the maintainers at chakravarthy1393966@gmail.com.
 
 We will acknowledge receipt of your vulnerability report within 48 hours and strive to send you regular updates about our progress. If the vulnerability is accepted, we will coordinate the public disclosure with you.

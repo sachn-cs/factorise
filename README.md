@@ -22,7 +22,7 @@ validate_int
   -> pollard_brent
      -> pollard_brent_attempt
   -> _factor_yield
-  -> factorise -> FactorisationResult
+│   ├── source/               # Core package source
 ```
 
 Key capabilities:
@@ -31,10 +31,26 @@ Key capabilities:
 - Optional reproducibility via `seed` / `FACTORISE_SEED`.
 - CLI with validated log levels.
 
-## 2. Repository Structure
+## 2. Quick Start
+
+Get started in seconds:
+
+```bash
+# Install
+pip install factorise
+
+# Using the library
+python -c "from source import factorise; print(factorise(123456789).expression())"
+
+# Using the CLI
+factorise 123456789 --verbose
+```
+
+## 3. Repository Structure
+# ... (rest of the file with updated numbering)
 
 ```text
-src/factorise/
+source/
   __init__.py     Public exports and version.
   core.py         Algorithms, config, validation, domain exceptions.
   cli.py          CLI command, display, logging, signal handling.
@@ -63,7 +79,7 @@ benchmarks/
   Lint, typecheck, tests, stress gate, security audit, build/release checks.
 ```
 
-## 3. Setup Instructions
+## 4. Setup Instructions
 
 Prerequisites:
 - Python 3.10, 3.11, 3.12, or 3.13.
@@ -81,7 +97,7 @@ Optional tooling:
 - `just` for command shortcuts (`just --list`).
 - `pre-commit` for local hook enforcement.
 
-## 4. Environment Variables
+## 5. Environment Variables
 
 Runtime configuration (used by `FactoriserConfig.from_env()`):
 
@@ -103,12 +119,12 @@ Bootstrap:
 cp .env.example .env
 ```
 
-## 5. Running Locally
+## 6. Running Locally
 
 Library usage:
 
 ```python
-from factorise import factorise
+from source import factorise
 
 result = factorise(123_456_789)
 print(result.factors)
@@ -135,13 +151,13 @@ just ci
 just ci-full
 ```
 
-## 6. Testing
+## 7. Testing
 
 Primary test commands:
 
 ```bash
 pytest tests/ -v
-pytest --cov=factorise --cov-fail-under=90 tests/
+pytest --cov=source --cov-fail-under=90 tests/
 pytest -v benchmarks/stress.py::test_stress_correctness
 pytest -q tests/test_core_primality.py
 pytest -q tests/test_cli_errors.py
@@ -154,7 +170,7 @@ Test strategy:
 - Stress tests: deterministic correctness at scale.
 - Test modules are organized by domain to reduce navigation friction.
 
-## 7. Linting / Formatting / Type Checking
+## 8. Linting / Formatting / Type Checking
 
 ```bash
 just lint
@@ -165,9 +181,9 @@ just type-check
 Or directly:
 
 ```bash
-ruff check src/ tests/ benchmarks/
-ruff format src/ tests/ benchmarks/
-mypy src/ tests/ benchmarks/
+ruff check source/ tests/ benchmarks/
+ruff format source/ tests/ benchmarks/
+mypy source/ tests/ benchmarks/
 ```
 
 Pre-commit:
@@ -182,7 +198,7 @@ CI enforces these checks and publishes JUnit artifacts for test jobs.
 Documentation:
 - Algorithm notes are maintained as curated narrative docs under `docs/`.
 
-## 8. Architecture Notes
+## 9. Architecture Notes
 
 Design choices:
 - Immutable config (`FactoriserConfig`) for reproducible and testable behavior.
@@ -194,7 +210,7 @@ Scalability and safety:
 - `max_iterations` and `max_retries` constrain worst-case runtime.
 - Trial division and perfect-square fast paths reduce heavy-path pressure.
 
-## 9. Logging / Troubleshooting
+## 10. Logging / Troubleshooting
 
 Logging model:
 - Library logger is disabled by default for quiet embedding.
@@ -211,7 +227,7 @@ Troubleshooting:
 - `FactorisationError`: increase retry/iteration budget or set deterministic seed for reproduction.
 - CLI configuration error: fix invalid `--log-level` / `FACTORISE_LOG_LEVEL`.
 
-## 10. Contribution Standards
+## 11. Contribution Standards
 
 - Work in-place; avoid parallel implementations.
 - Keep imports, naming, and docstrings consistent with Google-style conventions.
@@ -225,8 +241,7 @@ Troubleshooting:
 
 See `CONTRIBUTING.md` and `SECURITY.md` for policy details.
 
-## 11. Future Enhancements
+## 12. Future Enhancements
 
-- Add machine-readable log output mode for downstream observability systems.
 - Add periodic benchmark trend checks in CI for regression detection.
 - Add generated API reference docs if external integration demand increases.

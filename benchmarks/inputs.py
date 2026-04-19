@@ -71,3 +71,10 @@ SCALABILITY_INPUTS: Final[tuple[tuple[str, int], ...]] = (
     ("n_1e10", 10_000_000_019),  # prime near 1e10
     ("n_1e12", 1_000_000_000_039),  # prime near 1e12
 )
+
+# Fixed-bit-size benchmarks: used to report scaling across standard depths
+FIXED_SIZE_INPUTS: Final[tuple[tuple[str, int], ...]] = (
+    ("64_bit", 2147483647 * 9999991),  # ~54-bit (P31 * P24)
+    ("96_bit", 2305843009213693951 * 2147483647),  # ~92-bit (P61 * P31)
+    ("128_bit", 2305843009213693951 * 8796093022151),  # ~104-bit (P61 * P43)
+)

@@ -112,14 +112,16 @@ class FactoriserConfig:
         """Validate fields immediately — fail fast at construction time."""
         if self.batch_size < 1 or self.batch_size > 10_000:
             raise ValueError(
-                f"batch_size must be >= 1 and <= 10_000, got {self.batch_size}")
+                f"batch_size must be >= 1 and <= 10_000, got {self.batch_size}"
+            )
         if self.max_iterations < 1 or self.max_iterations > 100_000_000:
             raise ValueError(
                 f"max_iterations must be >= 1 and <= 100_000_000, got {self.max_iterations}"
             )
         if self.max_retries < 1 or self.max_retries > 100:
             raise ValueError(
-                f"max_retries must be >= 1 and <= 100, got {self.max_retries}")
+                f"max_retries must be >= 1 and <= 100, got {self.max_retries}"
+            )
 
     @classmethod
     def from_env(cls) -> "FactoriserConfig":
@@ -133,8 +135,9 @@ class FactoriserConfig:
         seed = os.getenv("FACTORISE_SEED")
         return cls(
             batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
-            max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS",
-                                         "10000000")),
+            max_iterations=int(
+                os.getenv("FACTORISE_MAX_ITERATIONS", "10000000")
+            ),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
             seed=int(seed) if seed is not None else None,
         )
@@ -157,7 +160,8 @@ def validate_int(value: object, name: str = "n") -> None:
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(
-            f"{name} must be a plain int, got {type(value).__name__!r}")
+            f"{name} must be a plain int, got {type(value).__name__!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +217,7 @@ def is_prime(n: int) -> bool:
 
 class AttemptStatus(enum.Enum):
     """Failure modes for a single Pollard-Brent attempt."""
+
     SUCCESS = enum.auto()
     ALGORITHM_FAILURE = enum.auto()
     ITERATION_CAP_HIT = enum.auto()
@@ -221,6 +226,7 @@ class AttemptStatus(enum.Enum):
 @dataclasses.dataclass(frozen=True)
 class AttemptResult:
     """Result of a single Pollard-Brent attempt."""
+
     status: AttemptStatus
     iterations_used: int
     factor: int | None = None
@@ -251,7 +257,8 @@ def pollard_brent_attempt(
     validate_int(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}"
+        )
 
     g, r, q = 1, 1, 1
     x, ys = 0, 0
@@ -270,11 +277,14 @@ def pollard_brent_attempt(
                 batch_limit = max_iterations - iterations
 
             if batch_limit <= 0:
-                logger.warning("iteration cap n={n} limit={limit}",
-                               n=n,
-                               limit=max_iterations)
-                return AttemptResult(AttemptStatus.ITERATION_CAP_HIT,
-                                     iterations)
+                logger.warning(
+                    "iteration cap n={n} limit={limit}",
+                    n=n,
+                    limit=max_iterations,
+                )
+                return AttemptResult(
+                    AttemptStatus.ITERATION_CAP_HIT, iterations
+                )
 
             for _ in range(batch_limit):
                 y = (y * y + c) % n
@@ -321,7 +331,8 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
     validate_int(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}"
+        )
 
     # Trial division fast-path for tiny primes
     # (Fixes Pollard's Rho cycle exhaustion on tiny fields like n=15, 35)
@@ -338,15 +349,20 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
     remaining_iterations = config.max_iterations
 
     for attempt in range(1, config.max_retries + 1):
-        rng = random.Random(config.seed +
-                            attempt) if config.seed is not None else random
+        rng = (
+            random.Random(config.seed + attempt)
+            if config.seed is not None
+            else random
+        )
         y = rng.randint(1, n - 1)
         c = rng.randint(1, n - 1)
-        logger.debug("attempt={attempt} n={n} y={y} c={c}",
-                     attempt=attempt,
-                     n=n,
-                     y=y,
-                     c=c)
+        logger.debug(
+            "attempt={attempt} n={n} y={y} c={c}",
+            attempt=attempt,
+            n=n,
+            y=y,
+            c=c,
+        )
 
         result = pollard_brent_attempt(n, y, c, config, remaining_iterations)
         remaining_iterations -= result.iterations_used
@@ -359,17 +375,22 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
             logger.debug("factor={factor} n={n}", factor=result.factor, n=n)
             return result.factor
 
-        if remaining_iterations <= 0 or result.status == AttemptStatus.ITERATION_CAP_HIT:
+        if (
+            remaining_iterations <= 0
+            or result.status == AttemptStatus.ITERATION_CAP_HIT
+        ):
             logger.error("global iteration cap hit for n={n}", n=n)
             break
 
     raise FactorisationError(
         f"pollard_brent failed for n={n} after {attempt} attempts. "
-        "Increase max_retries or max_iterations in FactoriserConfig.")
+        "Increase max_retries or max_iterations in FactoriserConfig."
+    )
 
 
-def _factor_yield(n: int,
-                  config: FactoriserConfig) -> Generator[int, None, None]:
+def _factor_yield(
+    n: int, config: FactoriserConfig
+) -> Generator[int, None, None]:
     """Recursively yield prime factors of n."""
     if n < 2:
         return
@@ -398,7 +419,8 @@ def factor_flatten(n: int, config: FactoriserConfig) -> list[int]:
     validate_int(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}"
+        )
     return list(_factor_yield(n, config))
 
 
@@ -428,26 +450,23 @@ def factorise(
     validate_int(n)
     if config is not None and not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}"
+        )
     cfg = config if config is not None else FactoriserConfig.from_env()
     logger.info("factorise start n={n}", n=n)
 
     if n == 0:
-        return FactorisationResult(original=0,
-                                   sign=1,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(
+            original=0, sign=1, factors=[], powers={}, is_prime=False
+        )
 
     sign = -1 if n < 0 else 1
     abs_n = abs(n)
 
     if abs_n == 1:
-        return FactorisationResult(original=n,
-                                   sign=sign,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(
+            original=n, sign=sign, factors=[], powers={}, is_prime=False
+        )
 
     raw_factors = factor_flatten(abs_n, cfg)
     counts = Counter(raw_factors)
@@ -458,11 +477,11 @@ def factorise(
         sign=sign,
         factors=factors,
         powers=powers,
-        is_prime=(len(factors) == 1 and sum(powers.values()) == 1) and
-        abs_n > 1,
+        is_prime=(len(factors) == 1 and sum(powers.values()) == 1)
+        and abs_n > 1,
     )
 
-    logger.info("factorise complete n={n} factors={factors}",
-                n=n,
-                factors=factors)
+    logger.info(
+        "factorise complete n={n} factors={factors}", n=n, factors=factors
+    )
     return result
