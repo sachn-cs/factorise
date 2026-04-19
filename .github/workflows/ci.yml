@@ -81,13 +81,7 @@ jobs:
         run: just install
 
       - name: Run tests
-        run: |
-          pytest \
-            --cov=factorise \
-            --cov-report=term-missing \
-            --cov-fail-under=90 \
-            --junitxml=test-results-${{ matrix.python-version }}.xml \
-            -v tests/
+        run: just test-ci
 
       - name: Upload test report
         if: always()
@@ -175,13 +169,21 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
 
+      - name: Install just
+        uses: taiki-e/install-action@just
+
       - name: Install build tooling
         run: |
           python -m pip install --upgrade pip
-          python -m pip install build twine pytest
+          python -m pip install build twine cyclonedx-bom
+
+      - name: Clean build environment
+        run: just clean
 
       - name: Build distributions
-        run: python -m build
+        run: |
+          python -m build
+          cyclonedx-py environment --outfile dist/sbom.cdx.json
 
       - name: Validate metadata
         run: twine check dist/*

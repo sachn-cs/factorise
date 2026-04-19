@@ -12,14 +12,15 @@ import pytest
 from benchmarks.inputs import FACTORISE_LARGE
 from benchmarks.inputs import FACTORISE_MEDIUM
 from benchmarks.inputs import FACTORISE_SMALL
+from benchmarks.inputs import FIXED_SIZE_INPUTS
 from benchmarks.inputs import IS_PRIME_LARGE
 from benchmarks.inputs import IS_PRIME_MEDIUM
 from benchmarks.inputs import IS_PRIME_SMALL
 from benchmarks.inputs import SCALABILITY_INPUTS
-from factorise.core import FactoriserConfig
-from factorise.core import factorise
-from factorise.core import is_prime
-from factorise.core import pollard_brent
+from source.core import FactoriserConfig
+from source.core import factorise
+from source.core import is_prime
+from source.core import pollard_brent
 
 DEFAULT_CONFIG: FactoriserConfig = FactoriserConfig()
 
@@ -55,11 +56,12 @@ REPEATED_CALLS: int = 10
 CACHING_TEST_NUMBER: int = 123_456_789
 
 
-@pytest.mark.parametrize("_label,n",
-                         IS_PRIME_SMALL,
-                         ids=[x[0] for x in IS_PRIME_SMALL])
-def test_bench_is_prime_small(benchmark: Callable[..., Any], _label: str,
-                              n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", IS_PRIME_SMALL, ids=[x[0] for x in IS_PRIME_SMALL]
+)
+def test_bench_is_prime_small(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark is_prime on small inputs.
 
     Args:
@@ -70,11 +72,12 @@ def test_bench_is_prime_small(benchmark: Callable[..., Any], _label: str,
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n",
-                         IS_PRIME_MEDIUM,
-                         ids=[x[0] for x in IS_PRIME_MEDIUM])
-def test_bench_is_prime_medium(benchmark: Callable[..., Any], _label: str,
-                               n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", IS_PRIME_MEDIUM, ids=[x[0] for x in IS_PRIME_MEDIUM]
+)
+def test_bench_is_prime_medium(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark is_prime on medium inputs.
 
     Args:
@@ -85,11 +88,12 @@ def test_bench_is_prime_medium(benchmark: Callable[..., Any], _label: str,
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n",
-                         IS_PRIME_LARGE,
-                         ids=[x[0] for x in IS_PRIME_LARGE])
-def test_bench_is_prime_large(benchmark: Callable[..., Any], _label: str,
-                              n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", IS_PRIME_LARGE, ids=[x[0] for x in IS_PRIME_LARGE]
+)
+def test_bench_is_prime_large(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark is_prime on large inputs.
 
     Args:
@@ -100,11 +104,12 @@ def test_bench_is_prime_large(benchmark: Callable[..., Any], _label: str,
     benchmark(is_prime, n)
 
 
-@pytest.mark.parametrize("_label,n",
-                         FACTORISE_SMALL,
-                         ids=[x[0] for x in FACTORISE_SMALL])
-def test_bench_factorise_small(benchmark: Callable[..., Any], _label: str,
-                               n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", FACTORISE_SMALL, ids=[x[0] for x in FACTORISE_SMALL]
+)
+def test_bench_factorise_small(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark factorise on small inputs.
 
     Args:
@@ -115,11 +120,12 @@ def test_bench_factorise_small(benchmark: Callable[..., Any], _label: str,
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n",
-                         FACTORISE_MEDIUM,
-                         ids=[x[0] for x in FACTORISE_MEDIUM])
-def test_bench_factorise_medium(benchmark: Callable[..., Any], _label: str,
-                                n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", FACTORISE_MEDIUM, ids=[x[0] for x in FACTORISE_MEDIUM]
+)
+def test_bench_factorise_medium(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark factorise on medium inputs.
 
     Args:
@@ -130,11 +136,12 @@ def test_bench_factorise_medium(benchmark: Callable[..., Any], _label: str,
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n",
-                         FACTORISE_LARGE,
-                         ids=[x[0] for x in FACTORISE_LARGE])
-def test_bench_factorise_large(benchmark: Callable[..., Any], _label: str,
-                               n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", FACTORISE_LARGE, ids=[x[0] for x in FACTORISE_LARGE]
+)
+def test_bench_factorise_large(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark factorise on large inputs.
 
     Args:
@@ -145,11 +152,12 @@ def test_bench_factorise_large(benchmark: Callable[..., Any], _label: str,
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n",
-                         POLLARD_INPUTS,
-                         ids=[x[0] for x in POLLARD_INPUTS])
-def test_bench_pollard_brent(benchmark: Callable[..., Any], _label: str,
-                             n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", POLLARD_INPUTS, ids=[x[0] for x in POLLARD_INPUTS]
+)
+def test_bench_pollard_brent(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark isolated pollard_brent cycle detection.
 
     Args:
@@ -182,11 +190,12 @@ def test_bench_batch_throughput(benchmark: Callable[..., Any]) -> None:
     benchmark(_run_batch, WORKLOAD_MIX, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("_label,n",
-                         SCALABILITY_INPUTS,
-                         ids=[x[0] for x in SCALABILITY_INPUTS])
-def test_bench_scalability(benchmark: Callable[..., Any], _label: str,
-                           n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", SCALABILITY_INPUTS, ids=[x[0] for x in SCALABILITY_INPUTS]
+)
+def test_bench_scalability(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark logarithmically spaced inputs to show O(n^1/4) growth.
 
     Args:
@@ -197,11 +206,12 @@ def test_bench_scalability(benchmark: Callable[..., Any], _label: str,
     benchmark(factorise, n, DEFAULT_CONFIG)
 
 
-@pytest.mark.parametrize("batch_size",
-                         BATCH_SIZES,
-                         ids=[f"batch_{b}" for b in BATCH_SIZES])
-def test_bench_batch_size_sensitivity(benchmark: Callable[..., Any],
-                                      batch_size: int) -> None:
+@pytest.mark.parametrize(
+    "batch_size", BATCH_SIZES, ids=[f"batch_{b}" for b in BATCH_SIZES]
+)
+def test_bench_batch_size_sensitivity(
+    benchmark: Callable[..., Any], batch_size: int
+) -> None:
     """Display how different FACTORISE_BATCH_SIZE values affect throughput.
 
     Args:
@@ -212,11 +222,12 @@ def test_bench_batch_size_sensitivity(benchmark: Callable[..., Any],
     benchmark(factorise, SEMIPRIME_LARGE, config)
 
 
-@pytest.mark.parametrize("_label,n",
-                         PERFECT_SQUARES,
-                         ids=[x[0] for x in PERFECT_SQUARES])
-def test_bench_perfect_squares(benchmark: Callable[..., Any], _label: str,
-                               n: int) -> None:
+@pytest.mark.parametrize(
+    "_label,n", PERFECT_SQUARES, ids=[x[0] for x in PERFECT_SQUARES]
+)
+def test_bench_perfect_squares(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
     """Benchmark perfect squares hitting the isqrt fast path directly.
 
     Args:
@@ -240,3 +251,21 @@ def test_bench_no_caching(benchmark: Callable[..., Any]) -> None:
             factorise(CACHING_TEST_NUMBER, DEFAULT_CONFIG)
 
     benchmark(repeated)
+
+
+@pytest.mark.parametrize(
+    "_label,n", FIXED_SIZE_INPUTS, ids=[x[0] for x in FIXED_SIZE_INPUTS]
+)
+def test_bench_fixed_bit_depths(
+    benchmark: Callable[..., Any], _label: str, n: int
+) -> None:
+    """Benchmark performance across standard bit-depths (64, 96, 128).
+
+    Args:
+        benchmark: Pytest benchmark fixture.
+        label: Bit-depth description.
+        n: The semiprime to factorise.
+    """
+    # Use standard config with enough iterations for the 104-bit case
+    config = FactoriserConfig(seed=42, max_iterations=5_000_000)
+    benchmark(factorise, n, config)

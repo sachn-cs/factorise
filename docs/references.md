@@ -1,35 +1,54 @@
 # References
 
-The algorithms implemented in `factorise` are based on foundational research in computational number theory.
+The algorithms implemented in `factorise` are based on foundational research in computational number theory and modern refinements for machine-integer factorization.
 
-## Miller (1976)
+## Primary Sources
+
+### Miller (1976)
 **Title:** Riemann's Hypothesis and Tests for Primality
 **Author:** Gary L. Miller
 **Year:** 1976
-**Description:** Introduced first deterministic primality test based on the Generalized Riemann Hypothesis. This established the "witness" framework used in the Miller-Rabin test.
+**Description:** Established the "witness" mathematical framework for primality testing.
 **Link:** [ACM Digital Library](https://dl.acm.org/doi/10.1145/800116.803773)
 
-## Rabin (1980)
+### Rabin (1980)
 **Title:** Probabilistic Algorithm for Testing Primality
 **Author:** Michael O. Rabin
 **Year:** 1980
-**Description:** Refined Miller's work into a probabilistic test that does not depend on the Riemann Hypothesis. Proved the error bound of $1/4$ per round.
+**Description:** Refined Miller's test into the probabilistic standard used today, proving the $1/4$ error bound.
 **Link:** [Journal of Number Theory](https://www.sciencedirect.com/science/article/pii/0022314X80900840)
 
-## Pollard (1975)
+### Pollard (1975)
 **Title:** A Monte Carlo Method for Factorization
 **Author:** John M. Pollard
 **Year:** 1975
-**Description:** Introduced the Pollard’s Rho algorithm for integer factorization using Floyd’s cycle-finding strategy.
+**Description:** Introduced the Pollard’s Rho algorithm for factorization using random mappings.
 **Link:** [BIT Numerical Mathematics](https://link.springer.com/article/10.1007/BF01931034)
 
-## Brent (1980)
+### Brent (1980)
 **Title:** An Improved Monte Carlo Factorization Algorithm
 **Author:** Richard P. Brent
 **Year:** 1980
-**Description:** Published the improved cycle-finding method that reduces GCD calls and ensures faster convergence in practice.
+**Description:** Published the improved cycle-finding method that reduces GCD pressure via batching.
 **Link:** [BIT Numerical Mathematics](https://link.springer.com/article/10.1007/BF01933190)
 
+## Deterministic Benchmarking & Extensions
+
+### Jaeschke (1993)
+**Title:** On strong pseudoprimes to several bases
+**Author:** Gerhard Jaeschke
+**Description:** Derived the deterministic bases for Miller-Rabin for numbers up to $10^{18}$ and beyond.
+**Link:** [Mathematics of Computation](https://www.ams.org/journals/mcom/1993-61-204/S0025-5718-1993-1192971-X/)
+
+### Sorenson & Webster (2015)
+**Title:** Strong Pseudoprimes to 12 Bases
+**Description:** Modern refinement of Jaeschke’s work, proving deterministic witness sets for 64-bit integers.
+**Link:** [ArXiv PDF](https://arxiv.org/abs/1503.01800)
+
+### Bach (1990)
+**Title:** Explicit Bounds for Primality Testing and Related Problems
+**Description:** Provided deep theoretical bounds on the performance and reliability of probabilistic algorithms in number theory.
+
 ## Further Reading
-- **Jaeschke (1993):** On strong pseudoprimes to several bases. Defined the deterministic bounds for Miller-Rabin.
-- **Sorenson & Webster (2015):** Deterministic Miller-Rabin Primality Test for Numbers less than $2^{64}$.
+- **Crandall & Pomerance:** *Prime Numbers: A Computational Perspective* (Springer). The gold standard textbook for implementing these algorithms.
+- **Knuth:** *The Art of Computer Programming, Volume 2: Seminumerical Algorithms*. Section 4.5.4 contains foundational analysis of Rho-methods.

@@ -39,7 +39,7 @@ Repository = "https://github.com/sachn-cs/factorise"
 "Bug Tracker" = "https://github.com/sachn-cs/factorise/issues"
 
 [project.scripts]
-factorise = "factorise.cli:app"
+factorise = "source.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -53,13 +53,14 @@ dev = [
     "twine>=6.2.0",
     "pip-audit>=2.9.0",
     "cyclonedx-bom>=4.1.0",
+    "pre-commit>=4.1.0",
 ]
 
 [tool.hatch.version]
-path = "src/factorise/__init__.py"
+path = "source/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/factorise"]
+packages = ["source"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -88,7 +89,7 @@ module = "hypothesis.*"
 ignore_missing_imports = true
 
 [tool.ruff]
-line-length = 100
+line-length = 80
 target-version = "py310"
 
 [tool.ruff.lint]
@@ -100,11 +101,17 @@ select = [
     "C4",     # flake8-comprehensions
     "UP",     # pyupgrade
     "I",      # isort
+    "ISC",    # flake8-implicit-str-concat
+    "T20",    # flake8-print
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
 ]
 
+[tool.ruff.lint.isort]
+force-single-line = true
+
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
-"benchmarks/*" = ["F401", "B018"]
+"benchmarks/*" = ["F401", "B018", "T201"]
+"scratch/*" = ["T201"]

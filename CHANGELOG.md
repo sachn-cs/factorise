@@ -7,26 +7,48 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Refined repo-root configuration files (.editorconfig, .gitignore, .gitattributes).
+- Standardized repository structure by flattening package code directly into `source/`.
+- Updated `CONTRIBUTING.md` with accurate setup and quality standards.
+
+## [0.3.3] — 2026-04-17
+
+### Added
+- CycloneDX SBOM generation in the release pipeline.
+- Checksum generation (`SHA256SUMS`) for all distribution artifacts.
+
+### Fixed
+- Stabilized CI workflows with improved caching and timeouts.
+- Ensured reproducible builds via `SOURCE_DATE_EPOCH` injection.
+
+## [0.3.0] — 2026-04-17
+
+### Added
+- Modular test suite architecture (split into domain-specific test files).
+- Property-based testing via `hypothesis` for primality and factorisation invariants.
+- Concurrency smoke tests for thread-safety verification.
+- Validated JSON logging mode for CLI with trace context support.
+
+### Changed
+- Standardized benchmarking suite with normalized names and README guidance.
+- Refined `FactoriserConfig` boundaries and environment variable mapping.
+
+## [0.2.0] — 2026-04-16
+
+### Added
+- Transitioned to `Hatch` as the primary build backend.
+- Integrated `just` task runner for simplified developer experience.
+- Added `pre-commit` configuration for local linting enforcement.
+- Initial project overview and architecture documentation in `README.md`.
+
 ## [0.1.0] — 2026-03-28
 
 ### Added
-
-- `factorise(n, config)` — main public API returning `FactorisationResult`
-- `FactorisationResult` — typed frozen dataclass (strictly deduplicated factors, powers map, is_prime calculation)
-- `FactoriserConfig` — frozen dataclass with `from_env()` for environment-based configuration
-- `is_prime(n)` — deterministic Miller-Rabin test valid for all n < 2^64
-- `validate_int(value, name)` — typed input guard (rejects bool, float, str)
-- `pollard_brent(n, config)` — Brent's Pollard Rho with GCD batching and bounded retries
-- `pollard_brent_attempt(n, y, c, config, max_iterations)` — single cycle-detection pass
-- `factor_flatten(n, config)` — recursive prime splitter
-- CLI via `factorise <number>` with `--verbose` and `--log-level` options
-- SIGINT / SIGTERM graceful shutdown in CLI
-- 240+ unit tests across correctness, type safety, determinism, and thread safety
-- **100% logic coverage** across the core mathematical engine
-- Exhaustive documentation suite in `docs/` (Miller-Rabin, Pollard-Brent depth)
-- Timing benchmarks via `pytest-benchmark` (43 cases)
-- Memory benchmarks via `tracemalloc` (34 cases)
-- `benchmarks/stress.py` for scalable multicore validation
-- Full README with premium badges and operational guide
-- PEP 561 `py.typed` marker
-- MIT License
+- Core Miller-Rabin and Pollard's Rho (Brent) implementation.
+- Typed `FactorisationResult` and `FactoriserConfig` models.
+- Functional CLI with verbose logging.
+- Initial unit test suite and benchmarks.
+- Project boilerplate (LICENSE, MANIFEST.in, .gitignore).

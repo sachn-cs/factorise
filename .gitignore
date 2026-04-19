@@ -26,15 +26,18 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# CI and build verification artifacts
+/wheel_env/
+/sdist_env/
+/verify-wheel/
+/verify-sdist/
+
 # PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
 *.manifest
 *.spec
 
 # Installer logs
 pip-log.txt
-pip-delete-this-directory.txt
 
 # Unit test / coverage reports
 htmlcov/
@@ -51,29 +54,26 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Static analysis and quality tools
+.mypy_cache/
+.ruff_cache/
+.benchmarks/
+
 # Environments
 .env
 .venv
 env/
 venv/
 ENV/
-env.bak/
-venv.bak/
 
-# IDEs
+# IDEs and Editors
 .idea/
 .vscode/
 *.swp
 *.swo
 
-# MacOS
+# OS metadata
 .DS_Store
-
-# Ruff
-.ruff_cache/
-
-# Benchmark outputs
-.benchmarks/
 
 # Temporary files
 /tmp/

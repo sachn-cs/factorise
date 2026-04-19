@@ -7,14 +7,24 @@ assignees: ''
 
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
+Please check for [existing feature requests](https://github.com/sachn-cs/factorise/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement) before submitting a new one.
 
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
+### Summary
+A short description of the request.
 
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
+### Problem
+What problem are you trying to solve? Please describe the pain point clearly.
 
-**Additional context**
-Add any other context or screenshots about the feature request here.
+### Proposed Solution
+What would you like to happen? Explain the desired functionality.
+
+### Alternatives Considered (optional)
+Any workarounds or other approaches you've considered?
+
+### Impact / Use Case
+- Who is affected? (e.g., library users, CLI operators)
+- How often does this occur?
+- What is blocked or improved by this change?
+
+### Additional Context (optional)
+Add any other context, links, or screenshots here.

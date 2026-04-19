@@ -7,22 +7,25 @@ assignees: ''
 
 ---
 
-**Describe the bug**
+### Summary
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Run command '...'
-2. Input '...'
-3. See error
+### Steps to Reproduce
+Steps to reproduce the behavior. Please include code snippets or CLI commands if possible:
+1. ...
+2. ...
+3. ...
 
-**Expected behavior**
+### Expected Behavior
 A clear and concise description of what you expected to happen.
 
-**Environment (please complete the following information):**
- - OS: [e.g. Ubuntu 22.04]
- - Python Version: [e.g. 3.12.1]
- - Factorise Version: [e.g. 0.1.0]
+### Actual Behavior
+What actually happened? Include error messages or tracebacks if available.
 
-**Additional context**
-Add any other context about the problem here.
+### Environment
+- OS: [e.g. Ubuntu 22.04]
+- Python Version: [e.g. 3.12.1]
+- Factorise Version: [e.g. 0.1.0]
+
+### Additional Context
+Add any other context about the problem here (e.g., config values or specific input numbers).

@@ -1,114 +1,72 @@
 # Contributing to Factorise
 
-Thank you for contributing to `factorise`.
+Thank you for your interest in contributing to `factorise`. This guide outlines the workflow and standards for this repository.
 
 ## Workflow
 
-1. **Fork** the repository and clone it locally.
-2. **Branch** off `master` for your work.
-3. **Commit** your changes with clear, descriptive commit messages.
-4. **Push** your branch to your fork.
-5. **Open a Pull Request** against the `master` branch.
+1. **Issue first**: For larger changes, please open an issue first to discuss the design.
+2. **Fork and Branch**: Fork the repo and create a feature branch off `master`.
+3. **Draft PR**: Open a Draft Pull Request early to get feedback.
+4. **Pass Checks**: Ensure all CI checks pass locally (`just ci`) before marking as ready for review.
+5. **Review and Merge**: Address reviewer comments and maintain a clean commit history.
 
 ## Setup for Development
 
+Prerequisites: Python 3.10+ and a virtual environment.
+
 ```bash
-# Clone and enter the repository
-git clone https://github.com/sachin/factorise.git
+# Clone the repository
+git clone https://github.com/sachn-cs/factorise.git
 cd factorise
 
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate
-
-# Install the package with all development dependencies
+# Install development dependencies
 pip install -e ".[dev]"
 
-# Optionally install pre-commit hooks
-pip install pre-commit
+# Optional: Install pre-commit hooks
 pre-commit install
 ```
 
-## Coding Standards
+We recommend using [just](https://github.com/casey/just) for task automation. Run `just --list` to see available commands.
 
-### Tools
+## Quality Standards
 
-| Tool | Role |
-|------|------|
-| `ruff` | Linting, import sorting, format |
-| `mypy` | Static type checking |
-| `pytest` | Test execution |
-| `pytest-cov` | Coverage reporting |
-
-### Pre-commit Hooks
-
-After installing dependencies, enable pre-commit hooks:
+### Linting and Type Checking
+We use `ruff` for linting/formatting and `mypy` for static type checking.
 
 ```bash
-pre-commit install
-```
-
-On every commit, `ruff check`, `ruff format`, and `mypy src/` run automatically. Fix any failures before pushing.
-
-### Local CI Checks
-
-Before opening a PR, run all checks locally:
-
-```bash
-just ci
-```
-
-Or via the equivalent commands:
-
-```bash
-ruff check src/ tests/ benchmarks/ scripts/
-python scripts/lint_import_policy.py src tests benchmarks scripts
-ruff format src/ tests/ benchmarks/ scripts/
-mypy src/ tests/ benchmarks/
-pytest --cov=factorise --cov-fail-under=90 tests/
+# Run all quality checks
+just lint
+just type-check
 ```
 
 ### Style Expectations
-
-- **Type hints** on all public functions and classes (PEP 484).
-- **Google-style docstrings** required on all public functions and classes.
-- **Import policy**: one import target per line, enforced by `scripts/lint_import_policy.py`.
-- **No booleans as integers**: `validate_int()` enforces plain `int` only; `bool` is rejected explicitly.
-- **No global state**: configuration is always passed explicitly via `FactoriserConfig`.
-- **`FactoriserConfig` upper bounds**: `batch_size ≤ 10_000`, `max_iterations ≤ 100_000_000`, `max_retries ≤ 100`.
+- **Strict Typing**: All public APIs must have full type hints (PEP 484).
+- **Documentation**: Use Google-style docstrings for all modules, classes, and functions.
+- **No Global State**: Algorithm configuration must be handled via `FactoriserConfig`.
+- **Validation**: Use `validate_int()` for public entry points to ensure plain integer inputs.
 
 ## Testing
 
+Coverage must not fall below **90%**. All new functionality must include tests covering success and failure modes.
+
 ```bash
-# Run the full suite
-pytest tests/ -v
+# Run the test suite
+just test
 
-# Run with coverage report
-pytest --cov=factorise --cov-report=term-missing tests/
+# Run with coverage enforcement
+just test-ci
 
-# Run benchmarks
-pytest benchmarks/timing.py --benchmark-only -v
-pytest benchmarks/memory.py -v
-
-# Run the stress test (requires multiprocessing)
-python -m benchmarks.stress
+# Run benchmarks and stress tests
+just benchmark
+just stress-test
 ```
 
-All new functionality requires tests. PRs with failing tests will not be merged. Coverage must not fall below 90%.
+## Pull Request Guidelines
 
-## Pull Request Quality
+- **Atomic Commits**: Keep commits focused and logically separated.
+- **Passing CI**: PRs with failing linting or tests will not be merged.
+- **Security**: Large changes must pass the stress test (`just stress-test`) to ensure algorithm stability.
+- **Release Integrity**: Releases are published via OIDC and include SHA256 integrity files and CycloneDX SBOMs.
 
-- All CI jobs must pass (`lint`, `typecheck`, `test`).
-- Release tags run trusted publishing (OIDC) and attach `SHA256SUMS` and `sbom.cdx.json` artifacts.
-- New algorithms must include a supporting document in `docs/`.
-- Large changes should be accompanied by a pass through the stress test (`python -m benchmarks.stress`).
-- Commit messages should describe _why_, not _what_.
-
-## Adding a New Algorithm
-
-1. Implement as a plain function in `core.py`; accept `FactoriserConfig` if tuneable.
-2. Return a factor or raise `FactorisationError` — do not return ambiguous failure values.
-3. Add tests covering correct output, edge cases, and failure modes.
-   Prefer placing new tests into existing domain-focused modules under `tests/`.
-4. Export from `__init__.py` if it is part of the public API.
-5. Verify `ruff check`, `ruff format`, and `mypy src/` all pass.
+---
+See `SECURITY.md` for our security policy and `CODE_OF_CONDUCT.md` for community standards.

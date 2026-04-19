@@ -2,7 +2,7 @@ include LICENSE
 include README.md
 include CHANGELOG.md
 include pyproject.toml
-recursive-include src/factorise *.py *.typed
+recursive-include source *.py *.typed
 prune .benchmarks
 prune .pytest_cache
 prune dist

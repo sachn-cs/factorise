@@ -1,14 +1,16 @@
+"""Property-based tests for algorithmic invariants using Hypothesis."""
+
 import pytest
 
-from factorise.core import factorise
-from factorise.core import is_prime
+from source.core import factorise
+from source.core import is_prime
 
 hypothesis = pytest.importorskip("hypothesis")
 st = pytest.importorskip("hypothesis.strategies")
 given = hypothesis.given
 
 
-@given(st.integers(min_value=-10**8, max_value=10**8))
+@given(st.integers(min_value=-(10**16), max_value=10**16))
 def test_factorisation_invariants(n: int) -> None:
     """Property-based tests to ensure factorisation invariants hold for all integers.
 

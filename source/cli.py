@@ -11,8 +11,8 @@ import signal
 import sys
 import traceback
 from types import FrameType
-from typing import Final
 from typing import Any
+from typing import Final
 
 import typer
 from loguru import logger
@@ -20,10 +20,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from factorise.core import FactorisationError
-from factorise.core import FactorisationResult
-from factorise.core import FactoriserConfig
-from factorise.core import factorise
+from source.core import FactorisationError
+from source.core import FactorisationResult
+from source.core import FactoriserConfig
+from source.core import factorise
 
 # Configuration Constants
 LOGGER_NAME: Final[str] = "factorise"
@@ -33,7 +33,8 @@ DEFAULT_LOG_FORMAT: Final[str] = "human"
 SUCCESS_EXIT_CODE: Final[int] = 0
 ERROR_EXIT_CODE: Final[int] = 1
 VALID_LOG_LEVELS: Final[frozenset[str]] = frozenset(
-    {"DEBUG", "INFO", "WARNING", "ERROR"})
+    {"DEBUG", "INFO", "WARNING", "ERROR"}
+)
 VALID_LOG_FORMATS: Final[frozenset[str]] = frozenset({"human", "json"})
 TRACE_CONTEXT_ENV_NAMES: Final[dict[str, str]] = {
     "request_id": "FACTORISE_REQUEST_ID",
@@ -61,8 +62,9 @@ def handle_signal(signum: int, _frame: FrameType | None) -> None:
         signum: The integer identifier of the caught signal.
         _frame: The current stack frame (unused).
     """
-    logger.info("Received signal {sig}, shutting down.",
-                sig=signal.Signals(signum).name)
+    logger.info(
+        "Received signal {sig}, shutting down.", sig=signal.Signals(signum).name
+    )
     sys.exit(SUCCESS_EXIT_CODE)
 
 
@@ -81,8 +83,11 @@ def display_prime(number: int) -> None:
         number: The evaluated prime integer.
     """
     console.print(
-        Panel(f"[bold green]{number}[/bold green] is a prime number!",
-              title="Result"))
+        Panel(
+            f"[bold green]{number}[/bold green] is a prime number!",
+            title="Result",
+        )
+    )
 
 
 def display_factors(result: FactorisationResult, verbose: bool) -> None:
@@ -136,8 +141,9 @@ def _resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
     extras = record.get("extra")
     extra_values = extras if isinstance(extras, dict) else {}
     for field, env_name in TRACE_CONTEXT_ENV_NAMES.items():
-        value = extra_values.get(field) if isinstance(extra_values,
-                                                      dict) else None
+        value = (
+            extra_values.get(field) if isinstance(extra_values, dict) else None
+        )
         if value in (None, ""):
             value = os.getenv(env_name)
         if value not in (None, ""):
@@ -165,21 +171,25 @@ def _json_log_sink(message: Any) -> None:
     exception = record.get("exception")
     if exception is not None:
         payload["exception"] = {
-            "type":
-                exception.type.__name__ if exception.type is not None else None,
-            "message":
-                str(exception.value) if exception.value is not None else None,
-            "stacktrace":
-                "".join(
-                    traceback.format_exception(exception.type, exception.value,
-                                               exception.traceback)),
+            "type": exception.type.__name__
+            if exception.type is not None
+            else None,
+            "message": str(exception.value)
+            if exception.value is not None
+            else None,
+            "stacktrace": "".join(
+                traceback.format_exception(
+                    exception.type, exception.value, exception.traceback
+                )
+            ),
         }
 
     sys.stderr.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
-def configure_logging(log_level: str,
-                      log_format: str = DEFAULT_LOG_FORMAT) -> None:
+def configure_logging(
+    log_level: str, log_format: str = DEFAULT_LOG_FORMAT
+) -> None:
     """Configure the global Loguru logger formatting and verbosity.
 
     Args:
@@ -194,10 +204,12 @@ def configure_logging(log_level: str,
     logger.enable(LOGGER_NAME)
     logger.remove()
     if normalized_format == "json":
-        logger.add(_json_log_sink,
-                   level=normalized_level,
-                   backtrace=False,
-                   diagnose=False)
+        logger.add(
+            _json_log_sink,
+            level=normalized_level,
+            backtrace=False,
+            diagnose=False,
+        )
         return
     logger.add(sys.stderr, level=normalized_level, format=LOG_FORMAT)
 
@@ -209,7 +221,8 @@ def main(
         False,
         "--verbose",
         "-v",
-        help="Print the full prime product expression."),
+        help="Print the full prime product expression.",
+    ),
     log_level: str = typer.Option(
         DEFAULT_LOG_LEVEL,
         "--log-level",
@@ -266,5 +279,5 @@ def main(
     logger.info("CLI complete factors={factors}", factors=result.factors)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     app()
