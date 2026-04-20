@@ -18,8 +18,10 @@ from collections.abc import Generator
 
 from loguru import logger
 
-# The set of witnesses that makes Miller-Rabin deterministic for n < 2^64.
+# Deterministic witnesses for n < 2^64 (12 bases).
 WITNESSES: tuple[int, ...] = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
+# Reduced witness set for n < 10^12 (6 bases, sufficient per Jaeschke 1993).
+WITNESSES_SMALL: tuple[int, ...] = (2, 3, 5, 7, 11, 13)
 WITNESSES_SET: frozenset[int] = frozenset(WITNESSES)
 TRIAL_DIVISION_PRIMES: tuple[int, ...] = (
     2,
@@ -43,6 +45,35 @@ TRIAL_DIVISION_PRIMES: tuple[int, ...] = (
     67,
     71,
     73,
+    79,
+    83,
+    89,
+    97,
+    101,
+    103,
+    107,
+    109,
+    113,
+    127,
+    131,
+    137,
+    139,
+    149,
+    151,
+    157,
+    163,
+    167,
+    173,
+    179,
+    181,
+    191,
+    193,
+    197,
+    199,
+    211,
+    223,
+    227,
+    229,
 )
 
 logger.disable("factorise")
@@ -172,8 +203,8 @@ def validate_int(value: object, name: str = "n") -> None:
 def is_prime(n: int) -> bool:
     """Deterministic Miller-Rabin primality test for all n < 2^64.
 
-    Uses the fixed witness set WITNESSES, which is provably sufficient
-    for all integers below 2^64.
+    Uses an adaptive witness set: 6 bases for n < 10^12 (per Jaeschke 1993),
+    12 bases for larger n up to 2^64.
 
     Args:
         n: The integer to test.
@@ -197,7 +228,8 @@ def is_prime(n: int) -> bool:
     s = (m & -m).bit_length() - 1
     d = m >> s
 
-    for a in WITNESSES:
+    witnesses = WITNESSES_SMALL if n < 10**12 else WITNESSES
+    for a in witnesses:
         x = pow(a, d, n)
         if x in (1, n - 1):
             continue
@@ -286,9 +318,18 @@ def pollard_brent_attempt(
                     AttemptStatus.ITERATION_CAP_HIT, iterations
                 )
 
-            for _ in range(batch_limit):
+            # Cache y-values during batch for O(1) backtrack recovery.
+            y_history: list[int] = []
+            checkpoint = max(1, batch_limit // 4)
+            for i in range(batch_limit):
                 y = (y * y + c) % n
                 q = (q * (x - y)) % n
+                y_history.append(y)
+                if (i + 1) % checkpoint == 0:
+                    g = math.gcd(q, n)
+                    if g > 1:
+                        iterations += i + 1
+                        return AttemptResult(AttemptStatus.SUCCESS, iterations, g)
 
             iterations += batch_limit
             g = math.gcd(q, n)
@@ -300,15 +341,21 @@ def pollard_brent_attempt(
         backtrack_budget = max_iterations - iterations
         if backtrack_budget <= 0:
             return AttemptResult(AttemptStatus.ITERATION_CAP_HIT, iterations)
-        for _ in range(backtrack_budget):
-            ys = (ys * ys + c) % n
-            iterations += 1
-            g = math.gcd(abs(x - ys), n)
+        for y_val in y_history:
+            g = math.gcd(abs(x - y_val), n)
             if g > 1:
                 break
         else:
-            logger.warning("backtrack cap n={n}", n=n)
-            return AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations)
+            # y_history exhausted without finding factor — continue stepping.
+            for _ in range(backtrack_budget - len(y_history)):
+                ys = (ys * ys + c) % n
+                iterations += 1
+                g = math.gcd(abs(x - ys), n)
+                if g > 1:
+                    break
+            else:
+                logger.warning("backtrack cap n={n}", n=n)
+                return AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations)
 
     if 1 < g < n:
         return AttemptResult(AttemptStatus.SUCCESS, iterations, g)
@@ -391,17 +438,23 @@ def pollard_brent(n: int, config: FactoriserConfig) -> int:
 def _factor_yield(
     n: int, config: FactoriserConfig
 ) -> Generator[int, None, None]:
-    """Recursively yield prime factors of n."""
-    if n < 2:
-        return
-    if is_prime(n):
-        yield n
-        return
+    """Iteratively yield prime factors of n using an explicit stack.
 
-    d = pollard_brent(n, config)
-    logger.debug("split n={n} d={d} r={r}", n=n, d=d, r=n // d)
-    yield from _factor_yield(d, config)
-    yield from _factor_yield(n // d, config)
+    Uses O(log n) stack space (worst case) but avoids call-stack overhead.
+    """
+    stack: list[int] = [n]
+    while stack:
+        current = stack.pop()
+        if current < 2:
+            continue
+        if is_prime(current):
+            yield current
+            continue
+
+        d = pollard_brent(current, config)
+        logger.debug("split n={n} d={d} r={r}", n=current, d=d, r=current // d)
+        stack.append(d)
+        stack.append(current // d)
 
 
 # Note: _factor_yield is a generator for memory efficiency on deeply nested factorisations.
