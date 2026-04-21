@@ -132,12 +132,15 @@ class FactoriserConfig:
         max_iterations: Hard cap on inner steps per Pollard-Brent attempt.
         max_retries: How many fresh random seeds to try before giving up.
         seed: Optional deterministic seed base for reproducible retries.
+        use_pipeline: If True, use the multi-stage pipeline instead of direct
+            Pollard-Brent. Defaults to False for backward compatibility.
     """
 
     batch_size: int = 128
     max_iterations: int = 10_000_000
     max_retries: int = 20
     seed: int | None = None
+    use_pipeline: bool = False
 
     def __post_init__(self) -> None:
         """Validate fields immediately — fail fast at construction time."""
@@ -171,6 +174,8 @@ class FactoriserConfig:
             ),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
             seed=int(seed) if seed is not None else None,
+            use_pipeline=os.getenv("FACTORISE_USE_PIPELINE", "").lower()
+            in ("1", "true", "yes"),
         )
 
 
@@ -457,13 +462,77 @@ def _factor_yield(
         stack.append(current // d)
 
 
+def _factor_yield_pipeline(
+    n: int, config: FactoriserConfig
+) -> Generator[int, None, None]:
+    """Iteratively yield prime factors of n using the multi-stage pipeline.
+
+    This function is used when config.use_pipeline is True. It uses the
+    FactorisationPipeline to find non-trivial factors, feeding each composite
+    part back into the pipeline until all remaining values are prime.
+    """
+    from source.pipeline import FactorisationPipeline, PipelineConfig, StageStatus
+
+    pipeline_config = PipelineConfig(
+        max_iterations=config.max_iterations,
+        max_retries=config.max_retries,
+        batch_size=config.batch_size,
+        seed=config.seed,
+    )
+    pipeline = FactorisationPipeline(pipeline_config)
+
+    stack: list[int] = [n]
+    while stack:
+        current = stack.pop()
+        if current < 2:
+            continue
+        if is_prime(current):
+            yield current
+            continue
+
+        # Ask the pipeline for one factor.
+        result = pipeline.attempt(current, config=config)
+        if result.status is StageStatus.SUCCESS and result.factor is not None:
+            d = result.factor
+            logger.debug(
+                "pipeline split n={n} d={d}",
+                n=current,
+                d=d,
+            )
+            stack.append(d)
+            stack.append(current // d)
+        elif result.status is StageStatus.FAILURE:
+            # Pipeline failed for this composite part; fall back to direct Pollard-Brent
+            # which may succeed with different parameters than the pipeline uses.
+            logger.warning(
+                "pipeline failed for n={n}, falling back to pollard_brent",
+                n=current,
+            )
+            try:
+                d = pollard_brent(current, config)
+                stack.append(d)
+                stack.append(current // d)
+            except FactorisationError:
+                # If even Pollard-Brent fails, re-raise as FactorisationError
+                # since the number cannot be factored with the available methods.
+                raise FactorisationError(
+                    f"All stages failed for n={current}; "
+                    "input may be prime or require GNFS"
+                )
+        else:
+            # SKIPPED — shouldn't happen for composite inputs
+            raise FactorisationError(
+                f"Pipeline returned unexpected status {result.status} for composite n={current}"
+            )
+
+
 # Note: _factor_yield is a generator for memory efficiency on deeply nested factorisations.
 def factor_flatten(n: int, config: FactoriserConfig) -> list[int]:
     """Recursively split n until every part is prime.
 
     Args:
         n: A positive integer.
-        config: Algorithm parameters forwarded to pollard_brent.
+        config: Algorithm parameters forwarded to pollard_brent or the pipeline.
 
     Returns:
         A flat list of prime factors (unsorted, with repetition).
@@ -474,6 +543,8 @@ def factor_flatten(n: int, config: FactoriserConfig) -> list[int]:
         raise TypeError(
             f"config must be FactoriserConfig, got {type(config).__name__!r}"
         )
+    if config.use_pipeline:
+        return list(_factor_yield_pipeline(n, config))
     return list(_factor_yield(n, config))
 
 
@@ -492,6 +563,7 @@ def factorise(
         n: The integer to factorise.
         config: Algorithm parameters. When omitted, reads from environment
                 variables via FactoriserConfig.from_env().
+                Set config.use_pipeline = True to use the multi-stage pipeline.
 
     Returns:
         A FactorisationResult containing the complete decomposition.
