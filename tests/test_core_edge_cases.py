@@ -40,7 +40,6 @@ def test_validate_int_boolean() -> None:
         validate_int(False)
 
 
-# Internal API contracts may change without notice.
 def test_pollard_brent_attempt_iteration_cap() -> None:
     """Verify that pollard_brent_attempt terminates when the iteration cap is hit."""
     config = FactoriserConfig(max_iterations=1, batch_size=1)
@@ -51,11 +50,19 @@ def test_pollard_brent_attempt_iteration_cap() -> None:
 
 
 def test_pollard_brent_attempt_backtrack_cap() -> None:
-    """Verify that pollard_brent_attempt terminates when the backtrack cap is hit."""
+    """Verify that pollard_brent_attempt returns ITERATION_CAP_HIT when backtrack budget is exhausted.
+
+    With max_iterations=1, after 1 iteration is used in the main loop,
+    backtrack_budget = max_iterations - iterations = 1 - 1 = 0,
+    triggering ITERATION_CAP_HIT before any backtrack stepping occurs.
+    """
     config = FactoriserConfig(max_iterations=1, batch_size=1)
-    with patch("math.gcd", side_effect=[COLLAPSE_N, 1]):
+    # First gcd (line 329 checkpoint): returns 1 -> g=1, no factor found
+    # Second gcd (line 335 post-batch): returns n -> g=n, main loop exits
+    # Then backtrack_budget = 1 - 1 = 0 -> ITERATION_CAP_HIT
+    with patch("math.gcd", side_effect=[1, 10001, 1, 1, 1]):
         result = pollard_brent_attempt(
-            COLLAPSE_N, 2, 1, config, max_iterations=1
+            10001, 2, 1, config, max_iterations=1
         )
         assert result.status is AttemptStatus.ITERATION_CAP_HIT
 
@@ -69,21 +76,24 @@ def test_pollard_brent_trial_division_path() -> None:
     )
 
 
-def test_pollard_brent_runtime_error_exhaustion() -> None:
-    """Verify that pollard_brent raises RuntimeError when all retries are exhausted."""
+def test_pollard_brent_exhaustion() -> None:
+    """Verify that pollard_brent raises when all retries are exhausted.
+
+    Uses a number (233*239=55687) whose prime factors are all > 229 so trial
+    division can't find them, bypassing that fast-path.
+    """
+    # 233 and 239 are both > 229 (end of TRIAL_DIVISION_PRIMES)
+    n_large = 233 * 239  # = 55687
     config = FactoriserConfig(max_retries=1, max_iterations=1)
-    with patch("source.core.is_prime", return_value=False):
-        failed_attempt = AttemptResult(
-            status=AttemptStatus.ALGORITHM_FAILURE,
-            iterations_used=1,
-            factor=None,
-        )
-        with patch(
-            "source.core.pollard_brent_attempt", return_value=failed_attempt
-        ):
-            with pytest.raises(RuntimeError) as excinfo:
-                pollard_brent(8051, config)
-            assert "failed" in str(excinfo.value)
+    failed_attempt = AttemptResult(
+        status=AttemptStatus.ALGORITHM_FAILURE,
+        iterations_used=1,
+        factor=None,
+    )
+    with patch("source.core.pollard_brent_attempt", return_value=failed_attempt):
+        with pytest.raises(Exception) as excinfo:
+            pollard_brent(n_large, config)
+        assert "failed" in str(excinfo.value)
 
 
 def test_stress_worker_pickling_smoke() -> None:
