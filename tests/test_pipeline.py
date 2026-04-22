@@ -119,8 +119,8 @@ class TestStageInterface:
 
     def test_trial_division_stage_no_factor(self) -> None:
         stage = TrialDivisionStage(bound=1000)
-        # 97 is prime, so trial division won't find a factor
-        result = stage.attempt(97 * 97, config=DEFAULT_CONFIG)  # 9409
+        # 233*239 has both primes > 1000, so trial division bound=1000 won't find a factor
+        result = stage.attempt(233 * 239, config=DEFAULT_CONFIG)  # 55687
         assert result.status is StageStatus.FAILURE
 
     def test_pollard_pminus1_stage(self) -> None:
@@ -448,8 +448,8 @@ class TestFailureIsolation:
         config = PipelineConfig(stage_order=())
         pipeline = FactorisationPipeline(config)
         result = pipeline.attempt(12, config=DEFAULT_CONFIG)
-        # No stages available, so SKIPPED
-        assert result.status is StageStatus.SKIPPED
+        # No stages available, so FAILURE (cannot factor without any stages)
+        assert result.status is StageStatus.FAILURE
 
 
 # ---------------------------------------------------------------------------
