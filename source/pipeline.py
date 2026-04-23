@@ -43,8 +43,10 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import math
 import time
-from abc import ABC, abstractmethod
+from abc import ABC
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from loguru import logger
@@ -107,14 +109,18 @@ class StageResult:
     reason: str = ""
     iterations_used: int = 0
 
-    def is_success(self) -> bool:
+    def was_successful(self) -> bool:
         return self.status is StageStatus.SUCCESS
 
-    def is_failure(self) -> bool:
+    def was_failed(self) -> bool:
         return self.status is StageStatus.FAILURE
 
-    def is_skipped(self) -> bool:
+    def was_skipped(self) -> bool:
         return self.status is StageStatus.SKIPPED
+
+    def outcome(self) -> StageStatus:
+        """Return the stage status for pattern matching."""
+        return self.status
 
 
 # ---------------------------------------------------------------------------
@@ -145,15 +151,13 @@ class FactorStage(ABC):
         """
         ...
 
-    def _elapsed(self, start: float) -> float:
+    def _elapsed_ms(self, start: float) -> float:
         return (time.monotonic() - start) * 1000
 
 
 # ---------------------------------------------------------------------------
-# Trial Division stage (implemented in pipeline.py for simplicity)
+# Trial Division stage
 # ---------------------------------------------------------------------------
-
-from source.core import TRIAL_DIVISION_PRIMES  # noqa: E402
 
 
 class TrialDivisionStage(FactorStage):
@@ -176,11 +180,12 @@ class TrialDivisionStage(FactorStage):
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
-        from source.core import validate_int
+        from source.core import ensure_integer_input
+        from source.core import SMALL_PRIMES_FOR_TRIAL_DIVISION
 
-        validate_int(n)
+        ensure_integer_input(n)
 
-        for p in TRIAL_DIVISION_PRIMES:
+        for p in SMALL_PRIMES_FOR_TRIAL_DIVISION:
             if self._bound and p > self._bound:
                 break
             if n % p == 0:
@@ -194,7 +199,7 @@ class TrialDivisionStage(FactorStage):
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=p,
-                    elapsed_ms=self._elapsed(start),
+                    elapsed_ms=self._elapsed_ms(start),
                     iterations_used=1,
                 )
 
@@ -207,13 +212,13 @@ class TrialDivisionStage(FactorStage):
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed(start),
+            elapsed_ms=self._elapsed_ms(start),
             reason="no small factor found in trial division",
         )
 
 
 # ---------------------------------------------------------------------------
-# Pollard p-1 stage (implemented in pipeline.py for simplicity)
+# Pollard p-1 stage
 # ---------------------------------------------------------------------------
 
 
@@ -237,18 +242,16 @@ class PollardPMinusOneStage(FactorStage):
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
-        import math
+        from source.core import ensure_integer_input
 
-        from source.core import validate_int
-
-        validate_int(n)
+        ensure_integer_input(n)
 
         if n < 3:
             return StageResult(
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed(start),
+                elapsed_ms=self._elapsed_ms(start),
                 reason="n < 3",
             )
 
@@ -267,7 +270,7 @@ class PollardPMinusOneStage(FactorStage):
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=g,
-                    elapsed_ms=self._elapsed(start),
+                    elapsed_ms=self._elapsed_ms(start),
                     iterations_used=1,
                 )
 
@@ -275,7 +278,7 @@ class PollardPMinusOneStage(FactorStage):
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed(start),
+            elapsed_ms=self._elapsed_ms(start),
             reason=f"no factor found with bound={self._bound}",
         )
 
@@ -349,7 +352,7 @@ class PipelineConfig:
         return list(self.stage_order)
 
     @classmethod
-    def from_env(cls) -> "PipelineConfig":
+    def from_env(cls) -> PipelineConfig:
         """Build a PipelineConfig from FACTORISE_* environment variables."""
         import os
 
@@ -476,7 +479,7 @@ class FactorisationPipeline:
                 stage_name="pipeline",
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed(start),
+                elapsed_ms=self._elapsed_ms(start),
                 reason="n < 2",
             )
 
@@ -485,7 +488,7 @@ class FactorisationPipeline:
                 stage_name="pipeline",
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed(start),
+                elapsed_ms=self._elapsed_ms(start),
                 reason="n is prime",
             )
 
@@ -506,16 +509,16 @@ class FactorisationPipeline:
                 elapsed_ms=result.elapsed_ms,
             )
 
-            if result.is_success() and result.factor is not None:
+            if result.was_successful() and result.factor is not None:
                 return StageResult(
                     stage_name="pipeline",
                     status=StageStatus.SUCCESS,
                     factor=result.factor,
-                    elapsed_ms=self._elapsed(start),
+                    elapsed_ms=self._elapsed_ms(start),
                     iterations_used=result.iterations_used,
                 )
 
-            if not result.is_skipped():
+            if not result.was_skipped():
                 failures.append(
                     f"{stage_name}({result.status.value}): {result.reason}"
                 )
@@ -524,11 +527,11 @@ class FactorisationPipeline:
             stage_name="pipeline",
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed(start),
+            elapsed_ms=self._elapsed_ms(start),
             reason="; ".join(failures) if failures else "all stages failed",
         )
 
-    def _elapsed(self, start: float) -> float:
+    def _elapsed_ms(self, start: float) -> float:
         return (time.monotonic() - start) * 1000
 
 

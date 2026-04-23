@@ -4,7 +4,7 @@ import pytest
 
 from source.core import FactorisationResult
 from source.core import FactoriserConfig
-from source.core import validate_int
+from source.core import ensure_integer_input
 from tests.conftest import DEFAULT_CONFIG
 
 
@@ -89,13 +89,13 @@ def test_result_expression_prime() -> None:
     "bad", [None, 1.5, "12", [12], (12,), {12}, True, False]
 )
 def test_validate_int_rejects_non_int(bad: object) -> None:
-    """Verify that validate_int raises TypeError for non-integer types."""
+    """Verify that ensure_integer_input raises TypeError for non-integer types."""
     with pytest.raises(TypeError):
-        validate_int(bad)
+        ensure_integer_input(bad)
 
 
 def test_validate_int_accepts_plain_int() -> None:
-    """Verify that validate_int allows plain integers without raising."""
-    validate_int(42)
-    validate_int(-10)
-    validate_int(0)
+    """Verify that ensure_integer_input allows plain integers without raising."""
+    ensure_integer_input(42)
+    ensure_integer_input(-10)
+    ensure_integer_input(0)

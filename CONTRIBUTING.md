@@ -12,7 +12,7 @@ Thank you for your interest in contributing to `factorise`. This guide outlines 
 
 ## Setup for Development
 
-Prerequisites: Python 3.10+ and a virtual environment.
+Prerequisites: Python 3.14+ and a virtual environment.
 
 ```bash
 # Clone the repository

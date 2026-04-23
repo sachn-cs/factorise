@@ -5,12 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
-from source.core import AttemptResult
-from source.core import AttemptStatus
+from source.core import BrentPollardCycleResult as AttemptResult
+from source.core import ensure_integer_input
+from source.core import execute_brent_pollard_cycle as pollard_brent_attempt
 from source.core import FactoriserConfig
-from source.core import pollard_brent
-from source.core import pollard_brent_attempt
-from source.core import validate_int
+from source.core import find_nontrivial_factor_pollard_brent as pollard_brent
+from source.core import PollardBrentOutcome as AttemptStatus
 
 PRIMES_IN_LIST: int = 73
 LARGE_COMPOSITE: int = (10**9 + 7) * (10**9 + 9)
@@ -26,18 +26,18 @@ def test_config_from_env_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.parametrize("value", [1.0, "1", None, [1], {1: 1}])
 def test_validate_int_failures(value: object) -> None:
-    """Verify that validate_int raises TypeError for various non-integer types."""
+    """Verify that ensure_integer_input raises TypeError for various non-integer types."""
     with pytest.raises(TypeError) as excinfo:
-        validate_int(value)
+        ensure_integer_input(value)
     assert "must be a plain int" in str(excinfo.value)
 
 
 def test_validate_int_boolean() -> None:
-    """Verify that booleans (True/False) are rejected by validate_int."""
+    """Verify that booleans (True/False) are rejected by ensure_integer_input."""
     with pytest.raises(TypeError):
-        validate_int(True)
+        ensure_integer_input(True)
     with pytest.raises(TypeError):
-        validate_int(False)
+        ensure_integer_input(False)
 
 
 def test_pollard_brent_attempt_iteration_cap() -> None:
@@ -46,7 +46,7 @@ def test_pollard_brent_attempt_iteration_cap() -> None:
     result = pollard_brent_attempt(
         LARGE_COMPOSITE, 2, 1, config, max_iterations=1
     )
-    assert result.status is AttemptStatus.ITERATION_CAP_HIT
+    assert result.outcome is AttemptStatus.ITERATION_CAP_HIT
 
 
 def test_pollard_brent_attempt_backtrack_cap() -> None:
@@ -64,7 +64,7 @@ def test_pollard_brent_attempt_backtrack_cap() -> None:
         result = pollard_brent_attempt(
             10001, 2, 1, config, max_iterations=1
         )
-        assert result.status is AttemptStatus.ITERATION_CAP_HIT
+        assert result.outcome is AttemptStatus.ITERATION_CAP_HIT
 
 
 def test_pollard_brent_trial_division_path() -> None:
@@ -86,11 +86,11 @@ def test_pollard_brent_exhaustion() -> None:
     n_large = 233 * 239  # = 55687
     config = FactoriserConfig(max_retries=1, max_iterations=1)
     failed_attempt = AttemptResult(
-        status=AttemptStatus.ALGORITHM_FAILURE,
+        AttemptStatus.ALGORITHM_FAILURE,
         iterations_used=1,
         factor=None,
     )
-    with patch("source.core.pollard_brent_attempt", return_value=failed_attempt):
+    with patch("source.core.execute_brent_pollard_cycle", return_value=failed_attempt):
         with pytest.raises(Exception) as excinfo:
             pollard_brent(n_large, config)
         assert "failed" in str(excinfo.value)
