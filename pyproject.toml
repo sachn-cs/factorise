@@ -7,7 +7,7 @@ name = "factorise"
 dynamic = ["version"]
 description = "Fast, deterministic prime factorisation using Miller-Rabin and Pollard's Rho (Brent)."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 license = { file = "LICENSE" }
 authors = [
     { name = "sachin", email = "chakravarthy1393966@gmail.com" }
@@ -25,6 +25,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -72,7 +73,7 @@ show_missing = true
 precision = 2
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.14"
 strict = true
 enable_error_code = ["no-untyped-def"]
 
@@ -90,7 +91,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 80
-target-version = "py310"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = [

@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-import random
 import time
-from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from source.pipeline import FactorStage, StageResult, StageStatus
-
-if TYPE_CHECKING:
-    from source.core import FactoriserConfig
+from source.core import FactorisationError
+from source.core import FactoriserConfig
+from source.core import ensure_integer_input
+from source.core import find_nontrivial_factor_pollard_brent
+from source.pipeline import FactorStage
+from source.pipeline import StageResult
+from source.pipeline import StageStatus
 
 logger.disable("factorise")
 
@@ -42,15 +43,8 @@ class PollardRhoStage(FactorStage):
         self._seed = seed
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
-        from source.core import (
-            FactorisationError,
-            FactoriserConfig,
-            pollard_brent,
-            validate_int,
-        )
-
         start = time.monotonic()
-        validate_int(n)
+        ensure_integer_input(n)
 
         cfg = FactoriserConfig(
             batch_size=self._batch_size,
@@ -60,7 +54,7 @@ class PollardRhoStage(FactorStage):
         )
 
         try:
-            factor = pollard_brent(n, cfg)
+            factor = find_nontrivial_factor_pollard_brent(n, cfg)
             logger.debug(
                 "stage={stage} n={n} factor={factor}",
                 stage=self.name,

@@ -1,35 +1,54 @@
-# Pollard’s Rho with Brent’s Improvement
+# Pollard's Rho with Brent's Improvement
 
-Brent’s improvement (1980) is a significant optimization of Pollard’s Rho algorithm. It replaces Floyd’s cycle-finding method with a more efficient search strategy and drastically reduces the computational pressure of Greatest Common Divisor (GCD) calls.
+Brent's improvement (1980) is a significant optimization of Pollard's Rho algorithm. It
+replaces Floyd's cycle-finding method with a more efficient batched search strategy that
+drastically reduces the number of GCD computations at the cost of a modest increase in
+modular multiplications.
 
 ## The GCD Bottleneck
-In the standard Pollard’s Rho algorithm, a GCD is computed at every step. In modern processors, modular multiplication and addition are significantly faster than GCD operations (which require multiple divisions). Brent's optimization exploits this by trade-off: performing more multiplications to perform fewer GCDs.
+
+In the standard Pollard Rho algorithm a GCD is computed at every step. On modern
+processors, modular multiplication is an order of magnitude faster than a GCD (which
+requires multiple division operations). Brent's optimization exploits this asymmetry: perform
+more multiplications to perform far fewer GCDs.
 
 ## Batching Logic
-Brent’s method accumulates the product of differences over a "batch" of $m$ iterations (where $m$ is typically between 64 and 128). The accumulated product $Q$ is defined as:
+
+Brent's method accumulates the product of differences over a batch of $m$ iterations
+(where $m$ is the configured `batch_size`, default 128):
+
 $$Q = \prod_{i=1}^m |x - y_i| \pmod{n}$$
-After every $m$ steps, we compute $g = \gcd(Q, n)$. If any $|x - y_i|$ shares a factor with $n$, the product $Q$ will also share that factor.
 
-## Power-of-2 Search Distances
-Unlike Floyd’s tortoise and hare, which move at different speeds, Brent’s method holds the tortoise ($x$) stationary while the hare ($y$) explores ahead in increasing powers of 2 ($r = 1, 2, 4, 8, \dots$).
+After every $m$ steps, a single $g = \gcd(Q, n)$ is computed. If any $|x - y_i|$ shares a
+non-trivial factor with $n$, that factor also divides $Q$, so the single deferred GCD will
+find it. This amortizes one GCD across $m$ iterations.
 
-## Backtracking Strategy
-A common failure in batching is when "too many" factors are gathered in $Q$, causing $\gcd(Q, n) = n$. This happens if the batch size $m$ is too large and multiple factors are encountered.
+## Power-of-Two Search Phases
 
-To recover, the algorithm saves $y$ as $y_s$ before starting a batch. If the batch results in $g=n$, the algorithm steps through the batch one value at a time ($y_s \to y_{s+1} \dots$) computing individual GCDs until a non-trivial factor is recovered.
+Unlike Floyd's tortoise-and-hare which moves at fixed relative speeds, Brent's method holds
+the tortoise ($x$) stationary and advances the hare ($y$) in exponentially growing phases:
+$r = 1, 2, 4, 8, \dots$ At the start of each phase $x$ is reset to the current $y$.
 
-## Performance Analysis
-By reducing GCD calls by a factor of $m$, Brent's method achieves a significant throughput increase. Furthermore, it only requires **one** function evaluation per step ($f(y)$), whereas Floyd's Hare requires **two**.
+## Backtracking on Cycle Collapse
 
-| Component | Floyd (Standard) | Brent (Improved) |
+A batch failure occurs when $\gcd(Q, n) = n$ — too many factors accumulated in $Q$, washing
+out the signal. The algorithm recovers by stepping through the saved batch one value at a
+time and recomputing individual GCDs until a non-trivial factor is recovered or the
+backtrack budget is exhausted.
+
+## Comparison with Floyd's Algorithm
+
+| Component | Floyd (standard) | Brent (improved) |
 | :--- | :--- | :--- |
-| **Generator Calls** | 3 per step | 1 per step (amortized) |
-| **GCD Calls** | 1 per step | $1/m$ per step |
-| **Logic Complexity** | Low | Moderate (due to backtrack) |
-| **Throughput Gain** | Baseline | **20% - 40%** |
+| Function evaluations | 2 per step | 1 per step (amortized) |
+| GCD computations | 1 per step | $1/m$ per step |
+| Throughput gain | baseline | **20 % – 40 %** |
+| Memory overhead | $O(1)$ | $O(m)$ for backtrack history |
 
 ## Implementation Trace
-The `factorise` tool implements Brent's Rho with a configurable `batch_size` (default 128) and a robust backtrack recovery phase.
+
+The `factorise` implementation uses `math.gcd` for the deferred GCD and a configurable
+`batch_size`. The backtrack loop is bounded by the remaining iteration budget:
 
 ```python
 while g == 1:
@@ -40,11 +59,13 @@ while g == 1:
     k = 0
     while k < r and g == 1:
         ys = y
-        batch_limit = min(m, r - k)
-        for _ in range(batch_limit):
+        for _ in range(min(batch_size, r - k)):
             y = (y * y + c) % n
             q = (q * abs(x - y)) % n
         g = gcd(q, n)
-        k += m
+        k += batch_size
     r *= 2
 ```
+
+The algorithm is wrapped in an outer retry loop that selects fresh random seeds $(y, c)$
+whenever the current attempt fails to find a factor.

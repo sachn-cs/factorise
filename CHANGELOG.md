@@ -9,10 +9,18 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+- `typing Self` import and `@classmethod`-returning `Self` for proper covariant return types.
+
 ### Changed
+- **Python 3.14**: bumped `requires-python`, mypy `python_version`, and ruff `target-version` to `3.14`.
 - Refined repo-root configuration files (.editorconfig, .gitignore, .gitattributes).
 - Standardized repository structure by flattening package code directly into `source/`.
 - Updated `CONTRIBUTING.md` with accurate setup and quality standards.
+
+### Fixed
+- Fixed variable shadowing in `GNFSStage._run_gnfs`: loop variable `f` overwrote file handle `f` from outer scope (caused type errors on Python 3.14).
+- Added missing type arguments to unparameterized `dict` literals in `QuadraticSieveStage` methods (`_find_relations`, `_find_dependency`, `_extract_factor`).
 
 ## [0.3.3] — 2026-04-17
 

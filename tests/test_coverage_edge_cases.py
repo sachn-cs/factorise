@@ -5,13 +5,13 @@ from unittest.mock import patch
 import pytest
 
 from source.cli import app
-from source.core import AttemptResult
-from source.core import AttemptStatus
+from source.core import BrentPollardCycleResult as AttemptResult
+from source.core import ensure_integer_input
+from source.core import execute_brent_pollard_cycle as pollard_brent_attempt
 from source.core import FactorisationError
 from source.core import FactoriserConfig
-from source.core import pollard_brent
-from source.core import pollard_brent_attempt
-from source.core import validate_int
+from source.core import find_nontrivial_factor_pollard_brent as pollard_brent
+from source.core import PollardBrentOutcome as AttemptStatus
 from tests.conftest import DEFAULT_CONFIG
 
 # 233 * 239 = 55687 - both primes > 229 (end of TRIAL_DIVISION_PRIMES)
@@ -28,7 +28,7 @@ LARGE_COMPOSITE_NO_SMALL_FACTORS = 1009 * 10007
 def test_validate_int_error_message() -> None:
     """Verify the error message content for validate_int."""
     with pytest.raises(TypeError) as excinfo:
-        validate_int("42", name="test_param")
+        ensure_integer_input("42", name="test_param")
     assert "test_param must be a plain int, got 'str'" in str(excinfo.value)
 
 
@@ -66,15 +66,15 @@ def test_pollard_brent_backtrack_failure() -> None:
     # algorithm tracks remaining budget and exits before exhausting backtrack.
     result = pollard_brent_attempt(n, 2, 1, config, max_iterations=1)
     # With our setup, we get ITERATION_CAP_HIT (iteration cap hit before backtrack)
-    assert result.status in (AttemptStatus.ITERATION_CAP_HIT, AttemptStatus.ALGORITHM_FAILURE)
+    assert result.outcome in (AttemptStatus.ITERATION_CAP_HIT, AttemptStatus.ALGORITHM_FAILURE)
 
 
 def test_pollard_brent_success_without_factor_bug() -> None:
     """Verify defensive check when algorithm claims success but provides no factor."""
     fake_success = AttemptResult(
-        status=AttemptStatus.SUCCESS, iterations_used=1, factor=None
+        AttemptStatus.SUCCESS, iterations_used=1, factor=None
     )
-    with patch("source.core.pollard_brent_attempt", return_value=fake_success):
+    with patch("source.core.execute_brent_pollard_cycle", return_value=fake_success):
         with patch("source.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
@@ -84,9 +84,9 @@ def test_pollard_brent_success_without_factor_bug() -> None:
 def test_pollard_brent_global_iteration_cap_hit() -> None:
     """Verify behavior when the global iteration cap is hit."""
     cap_hit = AttemptResult(
-        status=AttemptStatus.ITERATION_CAP_HIT, iterations_used=10
+        AttemptStatus.ITERATION_CAP_HIT, iterations_used=10
     )
-    with patch("source.core.pollard_brent_attempt", return_value=cap_hit):
+    with patch("source.core.execute_brent_pollard_cycle", return_value=cap_hit):
         with patch("source.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
@@ -128,9 +128,9 @@ def test_cli_main_type_error_catch() -> None:
 def test_pollard_brent_all_retries_fail() -> None:
     """Exhaust all retries in pollard_brent to hit loop termination branch."""
     fail_res = AttemptResult(
-        status=AttemptStatus.ALGORITHM_FAILURE, iterations_used=1
+        AttemptStatus.ALGORITHM_FAILURE, iterations_used=1
     )
-    with patch("source.core.pollard_brent_attempt", return_value=fail_res):
+    with patch("source.core.execute_brent_pollard_cycle", return_value=fail_res):
         with patch("source.core.is_prime", return_value=False):
             cfg = FactoriserConfig(max_retries=1)
             with pytest.raises(FactorisationError):

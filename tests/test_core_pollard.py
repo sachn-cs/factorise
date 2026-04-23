@@ -5,8 +5,9 @@ from typing import cast
 import pytest
 
 from source.core import FactoriserConfig
-from source.core import factor_flatten
-from source.core import pollard_brent
+from source.core import collect_prime_factors as factor_flatten
+from source.core import FactoriserConfig
+from source.core import find_nontrivial_factor_pollard_brent as pollard_brent
 from tests.conftest import DEFAULT_CONFIG
 
 

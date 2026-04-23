@@ -13,12 +13,12 @@ from typing import cast
 import pytest
 
 from source.core import (
+    collect_prime_factors as factor_flatten,
     FactorisationError,
     FactoriserConfig,
-    factor_flatten,
     factorise,
+    find_nontrivial_factor_pollard_brent as pollard_brent,
     is_prime,
-    pollard_brent,
 )
 from source.pipeline import (
     FactorStage,
