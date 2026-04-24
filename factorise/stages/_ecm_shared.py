@@ -45,9 +45,8 @@ class EllipticCurveOperations:
 
     name: str
 
-    def point_double(
-        self, x: int, y: int, a: int, n: int
-    ) -> tuple[int, int, int]:
+    def point_double(self, x: int, y: int, a: int,
+                     n: int) -> tuple[int, int, int]:
         """Double point (x, y) on the curve y² = x³ + ax + b (mod n).
 
         Returns (x3, y3, gcd_value) where gcd_value > 1 if a factor was found.
@@ -67,9 +66,8 @@ class EllipticCurveOperations:
         y3 = (lam * (x - x3) - y) % n
         return (x3 % n, y3 % n, 1)
 
-    def point_add(
-        self, x1: int, y1: int, x2: int, y2: int, a: int, n: int
-    ) -> tuple[int, int, int]:
+    def point_add(self, x1: int, y1: int, x2: int, y2: int, a: int,
+                  n: int) -> tuple[int, int, int]:
         """Add points (x1, y1) and (x2, y2) on the curve (mod n).
 
         Returns (x3, y3, gcd_value) where gcd_value > 1 if a factor was found.
@@ -94,9 +92,8 @@ class EllipticCurveOperations:
         y3 = (lam * (x1 - x3) - y1) % n
         return (x3 % n, y3 % n, 1)
 
-    def multiply_point(
-        self, point: list[int], k: int, a: int, n: int
-    ) -> int | None:
+    def multiply_point(self, point: list[int], k: int, a: int,
+                       n: int) -> int | None:
         """Multiply point [x,y] by scalar k using Montgomery ladder.
 
         Returns a factor if a gcd during computation reveals one, else None.
@@ -125,7 +122,8 @@ class EllipticCurveOperations:
                     return f
         return None
 
-    def run_curve(self, n: int, curve_seed: int, primes: list[int], bound: int) -> int | None:
+    def run_curve(self, n: int, curve_seed: int, primes: list[int],
+                  bound: int) -> int | None:
         """Run one ECM curve and return a factor if found, else None.
 
         Uses the Montgomery ladder approach for efficient point multiplication.

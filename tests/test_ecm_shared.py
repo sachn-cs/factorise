@@ -1,6 +1,5 @@
 """Tests for ECM shared utilities."""
 
-
 from factorise.stages._ecm_shared import EllipticCurveOperations
 from factorise.stages._ecm_shared import compute_modular_inverse
 from factorise.stages._ecm_shared import generate_primes_up_to

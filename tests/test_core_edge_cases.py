@@ -43,9 +43,11 @@ def test_validate_int_boolean() -> None:
 def test_pollard_brent_attempt_iteration_cap() -> None:
     """Verify that pollard_brent_attempt terminates when the iteration cap is hit."""
     config = FactoriserConfig(max_iterations=1, batch_size=1)
-    result = pollard_brent_attempt(
-        LARGE_COMPOSITE, 2, 1, config, max_iterations=1
-    )
+    result = pollard_brent_attempt(LARGE_COMPOSITE,
+                                   2,
+                                   1,
+                                   config,
+                                   max_iterations=1)
     assert result.outcome is AttemptStatus.ITERATION_CAP_HIT
 
 
@@ -61,9 +63,7 @@ def test_pollard_brent_attempt_backtrack_cap() -> None:
     # Second gcd (line 335 post-batch): returns n -> g=n, main loop exits
     # Then backtrack_budget = 1 - 1 = 0 -> ITERATION_CAP_HIT
     with patch("math.gcd", side_effect=[1, 10001, 1, 1, 1]):
-        result = pollard_brent_attempt(
-            10001, 2, 1, config, max_iterations=1
-        )
+        result = pollard_brent_attempt(10001, 2, 1, config, max_iterations=1)
         assert result.outcome is AttemptStatus.ITERATION_CAP_HIT
 
 
@@ -71,9 +71,8 @@ def test_pollard_brent_trial_division_path() -> None:
     """Verify that pollard_brent succeeds using trial division for small factors."""
     config = FactoriserConfig()
     assert pollard_brent(PRIMES_IN_LIST * 2, config) == 2
-    assert (
-        pollard_brent(PRIMES_IN_LIST * PRIMES_IN_LIST, config) == PRIMES_IN_LIST
-    )
+    assert (pollard_brent(PRIMES_IN_LIST * PRIMES_IN_LIST,
+                          config) == PRIMES_IN_LIST)
 
 
 def test_pollard_brent_exhaustion() -> None:
@@ -90,7 +89,8 @@ def test_pollard_brent_exhaustion() -> None:
         iterations_used=1,
         factor=None,
     )
-    with patch("factorise.core.execute_brent_pollard_cycle", return_value=failed_attempt):
+    with patch("factorise.core.execute_brent_pollard_cycle",
+               return_value=failed_attempt):
         with pytest.raises(Exception) as excinfo:
             pollard_brent(n_large, config)
         assert "failed" in str(excinfo.value)

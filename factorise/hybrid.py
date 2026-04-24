@@ -189,7 +189,8 @@ class HybridFactorisationEngine:
             second_pass_curves=self.__config.ecm_second_pass_curves,
             second_pass_bound=self.__config.ecm_second_pass_bound,
         )
-        self.__siqs_stage = SIQSStage(max_bit_length=self.__config.siqs_max_bit_length)
+        self.__siqs_stage = SIQSStage(
+            max_bit_length=self.__config.siqs_max_bit_length)
 
     def attempt(self, n: int) -> FactorisationResult:
         """Factorise *n* and return the complete prime decomposition.
@@ -207,19 +208,25 @@ class HybridFactorisationEngine:
 
         # ---- Phase 0: Trivial inputs ----
         if n == 0:
-            return FactorisationResult(
-                original=0, sign=1, factors=[], powers={}, is_prime=False
-            )
+            return FactorisationResult(original=0,
+                                       sign=1,
+                                       factors=[],
+                                       powers={},
+                                       is_prime=False)
         if n == 1 or n == -1:
             sign = -1 if n < 0 else 1
-            return FactorisationResult(
-                original=n, sign=sign, factors=[], powers={}, is_prime=False
-            )
+            return FactorisationResult(original=n,
+                                       sign=sign,
+                                       factors=[],
+                                       powers={},
+                                       is_prime=False)
         if n == 2 or n == -2:
             sign = -1 if n < 0 else 1
-            return FactorisationResult(
-                original=n, sign=sign, factors=[2], powers={2: 1}, is_prime=True
-            )
+            return FactorisationResult(original=n,
+                                       sign=sign,
+                                       factors=[2],
+                                       powers={2: 1},
+                                       is_prime=True)
 
         sign = -1 if n < 0 else 1
         abs_n = abs(n)
@@ -255,7 +262,8 @@ class HybridFactorisationEngine:
 
         # ---- Phase 3: Carmichael detection (optional) ----
         if self.__config.carmichael_check and has_carmichael_property(abs_n):
-            logger.info("n={n} is Carmichael, proceeding with factorisation", n=n)
+            logger.info("n={n} is Carmichael, proceeding with factorisation",
+                        n=n)
 
         # ---- Phase 4: Even number fast path ----
         if abs_n % 2 == 0:
@@ -291,9 +299,7 @@ class HybridFactorisationEngine:
                 self.__siqs_stage,
             )
             if factor is None:
-                raise FactorisationError(
-                    f"all methods failed for n={current}"
-                )
+                raise FactorisationError(f"all methods failed for n={current}")
 
             cofactor = current // factor
             if is_prime(factor):

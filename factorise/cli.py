@@ -35,8 +35,7 @@ DEFAULT_LOG_FORMAT: Final[str] = "human"
 SUCCESS_EXIT_CODE: Final[int] = 0
 ERROR_EXIT_CODE: Final[int] = 1
 VALID_LOG_LEVELS: Final[frozenset[str]] = frozenset(
-    {"DEBUG", "INFO", "WARNING", "ERROR"}
-)
+    {"DEBUG", "INFO", "WARNING", "ERROR"})
 VALID_LOG_FORMATS: Final[frozenset[str]] = frozenset({"human", "json"})
 TRACE_CONTEXT_ENV_NAMES: Final[dict[str, str]] = {
     "request_id": "FACTORISE_REQUEST_ID",
@@ -64,9 +63,8 @@ def handle_signal(signum: int, frame: FrameType | None) -> None:
         signum: The integer identifier of the caught signal.
         frame: The current stack frame (unused).
     """
-    logger.info(
-        "Received signal {sig}, shutting down.", sig=signal.Signals(signum).name
-    )
+    logger.info("Received signal {sig}, shutting down.",
+                sig=signal.Signals(signum).name)
     code = 128 + signum
     sys.exit(code)
 
@@ -75,6 +73,7 @@ def register_signal_handlers() -> None:
     """Register SIGINT and SIGTERM handlers for graceful CLI shutdown."""
     signal.signal(signal.SIGINT, handle_signal)
     signal.signal(signal.SIGTERM, handle_signal)
+
 
 # ---------------------------------------------------------------------------
 # Display helpers
@@ -91,8 +90,7 @@ def display_prime(number: int) -> None:
         Panel(
             f"[bold green]{number}[/bold green] is a prime number!",
             title="Result",
-        )
-    )
+        ))
 
 
 def display_factors(result: FactorisationResult, verbose: bool) -> None:
@@ -146,9 +144,8 @@ def resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
     extras = record.get("extra")
     extra_values = extras if isinstance(extras, dict) else {}
     for field, env_name in TRACE_CONTEXT_ENV_NAMES.items():
-        value = (
-            extra_values.get(field) if isinstance(extra_values, dict) else None
-        )
+        value = (extra_values.get(field)
+                 if isinstance(extra_values, dict) else None)
         if value in (None, ""):
             value = os.getenv(env_name)
         if value not in (None, ""):
@@ -176,25 +173,21 @@ def json_log_sink(message: Any) -> None:
     exception = record.get("exception")
     if exception is not None:
         payload["exception"] = {
-            "type": exception.type.__name__
-            if exception.type is not None
-            else None,
-            "message": str(exception.value)
-            if exception.value is not None
-            else None,
-            "stacktrace": "".join(
-                traceback.format_exception(
-                    exception.type, exception.value, exception.traceback
-                )
-            ),
+            "type":
+                exception.type.__name__ if exception.type is not None else None,
+            "message":
+                str(exception.value) if exception.value is not None else None,
+            "stacktrace":
+                "".join(
+                    traceback.format_exception(exception.type, exception.value,
+                                               exception.traceback)),
         }
 
     sys.stderr.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
-def configure_logging(
-    log_level: str, log_format: str = DEFAULT_LOG_FORMAT
-) -> None:
+def configure_logging(log_level: str,
+                      log_format: str = DEFAULT_LOG_FORMAT) -> None:
     """Configure the global Loguru logger formatting and verbosity.
 
     Args:

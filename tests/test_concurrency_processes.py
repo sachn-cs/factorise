@@ -31,8 +31,7 @@ def test_multiprocessing_factorisation_consistency() -> None:
         results = [pool.apply(worker, t) for t in tasks]
 
     assert all(results), (
-        "Multiprocessing produced inconsistent or incorrect results."
-    )
+        "Multiprocessing produced inconsistent or incorrect results.")
 
 
 def test_pickleability() -> None:

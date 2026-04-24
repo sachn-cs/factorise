@@ -39,15 +39,33 @@ def test_hybrid_config_custom() -> None:
 @pytest.mark.parametrize(
     "kwargs",
     [
-        {"trial_division_bound": 0},
-        {"trial_division_bound": -1},
-        {"rho_max_retries": 0},
-        {"rho_max_iterations": 0},
-        {"rho_batch_size": 0},
-        {"ecm_first_pass_curves": 0},
-        {"ecm_second_pass_curves": 0},
-        {"siqs_max_bit_length": 0},
-        {"gnfs_timeout_seconds": 0},
+        {
+            "trial_division_bound": 0
+        },
+        {
+            "trial_division_bound": -1
+        },
+        {
+            "rho_max_retries": 0
+        },
+        {
+            "rho_max_iterations": 0
+        },
+        {
+            "rho_batch_size": 0
+        },
+        {
+            "ecm_first_pass_curves": 0
+        },
+        {
+            "ecm_second_pass_curves": 0
+        },
+        {
+            "siqs_max_bit_length": 0
+        },
+        {
+            "gnfs_timeout_seconds": 0
+        },
     ],
 )
 def test_hybrid_config_invalid(kwargs: dict[str, int]) -> None:
@@ -111,7 +129,7 @@ def test_invoke_external_gnfs_too_small() -> None:
 def test_invoke_external_gnfs_too_large() -> None:
     """Verify invoke_external_gnfs skips very large inputs."""
     cfg = HybridConfig()
-    n = 2 ** (GNFS_MAXIMUM_BIT_LENGTH + 1)
+    n = 2**(GNFS_MAXIMUM_BIT_LENGTH + 1)
     factor = invoke_external_gnfs(n, cfg)
     assert factor is None
 
@@ -140,7 +158,7 @@ def test_select_medium_bits() -> None:
     pm1 = ImprovedPollardPMinusOneStage()
     ecm = TwoPassECMStage()
     siqs = SIQSStage()
-    n = 2 ** 50 + 1
+    n = 2**50 + 1
     _factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
     # May or may not find a factor; just verify no crash
 
@@ -152,7 +170,7 @@ def test_select_large_bits() -> None:
     pm1 = ImprovedPollardPMinusOneStage()
     ecm = TwoPassECMStage()
     siqs = SIQSStage()
-    n = 2 ** 70 + 1
+    n = 2**70 + 1
     _factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
     # May or may not find a factor; just verify no crash
 

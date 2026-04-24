@@ -1,6 +1,5 @@
 """Comprehensive tests for all factorisation stage implementations."""
 
-
 from factorise.core import FactoriserConfig
 from factorise.pipeline import StageStatus
 
@@ -202,7 +201,7 @@ def test_qs_large_input_skipped() -> None:
 
     stage = QuadraticSieveStage()
     # A very large number
-    result = stage.attempt(2 ** 90 + 1, config=FactoriserConfig())
+    result = stage.attempt(2**90 + 1, config=FactoriserConfig())
     assert result.status is StageStatus.SKIPPED
 
 
@@ -263,7 +262,7 @@ def test_siqs_large_input_skipped() -> None:
     from factorise.stages.siqs import SIQSStage
 
     stage = SIQSStage()
-    result = stage.attempt(2 ** 120 + 1, config=FactoriserConfig())
+    result = stage.attempt(2**120 + 1, config=FactoriserConfig())
     assert result.status is StageStatus.SKIPPED
 
 
@@ -277,7 +276,7 @@ def test_gnfs_missing_binary() -> None:
     from factorise.stages.gnfs import GNFSStage
 
     stage = GNFSStage(binary="nonexistent_binary_xyz")
-    result = stage.attempt(2 ** 90 + 1, config=FactoriserConfig())
+    result = stage.attempt(2**90 + 1, config=FactoriserConfig())
     assert result.status is StageStatus.SKIPPED
 
 
@@ -295,7 +294,7 @@ def test_gnfs_too_large() -> None:
     from factorise.stages.gnfs import GNFSStage
 
     stage = GNFSStage(binary="msieve")
-    result = stage.attempt(2 ** 600 + 1, config=FactoriserConfig())
+    result = stage.attempt(2**600 + 1, config=FactoriserConfig())
     assert result.status is StageStatus.SKIPPED
 
 
@@ -304,7 +303,7 @@ def test_gnfs_even_in_range() -> None:
     from factorise.stages.gnfs import GNFSStage
 
     stage = GNFSStage(binary="msieve")
-    result = stage.attempt(2 ** 85, config=FactoriserConfig())
+    result = stage.attempt(2**85, config=FactoriserConfig())
     # When msieve is missing, it skips
     assert result.status in (StageStatus.SUCCESS, StageStatus.SKIPPED)
 
@@ -380,9 +379,15 @@ def test_find_dependency() -> None:
     from factorise.stages._qs_shared import find_dependency
 
     relations = [
-        {"exponents": [0, 1, 1]},
-        {"exponents": [1, 0, 1]},
-        {"exponents": [1, 1, 0]},
+        {
+            "exponents": [0, 1, 1]
+        },
+        {
+            "exponents": [1, 0, 1]
+        },
+        {
+            "exponents": [1, 1, 0]
+        },
     ]
     dep = find_dependency(relations, 3)
     assert dep is not None
@@ -402,8 +407,16 @@ def test_extract_factor() -> None:
     from factorise.stages._qs_shared import extract_factor
 
     relations = [
-        {"a": 2, "a2_mod_n": 4, "exponents": [2]},
-        {"a": 3, "a2_mod_n": 9, "exponents": [0]},
+        {
+            "a": 2,
+            "a2_mod_n": 4,
+            "exponents": [2]
+        },
+        {
+            "a": 3,
+            "a2_mod_n": 9,
+            "exponents": [0]
+        },
     ]
     dependency = [1, 1]
     prime_base = [2]
@@ -417,7 +430,11 @@ def test_extract_factor_trivial() -> None:
     from factorise.stages._qs_shared import extract_factor
 
     relations = [
-        {"a": 1, "a2_mod_n": 1, "exponents": [0]},
+        {
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0]
+        },
     ]
     dependency = [0]
     prime_base = [2]

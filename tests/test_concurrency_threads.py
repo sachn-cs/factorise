@@ -31,8 +31,7 @@ def test_multithreaded_factorisation_consistency() -> None:
         return result == baseline
 
     with concurrent.futures.ThreadPoolExecutor(
-        max_workers=NUM_THREADS
-    ) as executor:
+            max_workers=NUM_THREADS) as executor:
         # Run many repetitions to increase contention probability
         futures = [
             executor.submit(worker, i) for i in range(NUM_THREADS * REPETITIONS)
@@ -40,8 +39,7 @@ def test_multithreaded_factorisation_consistency() -> None:
         results = [f.result() for f in concurrent.futures.as_completed(futures)]
 
     assert all(results), (
-        "At least one thread produced an inconsistent result under contention."
-    )
+        "At least one thread produced an inconsistent result under contention.")
 
 
 def test_mixed_threaded_workload() -> None:
@@ -53,10 +51,8 @@ def test_mixed_threaded_workload() -> None:
         return res.original
 
     with concurrent.futures.ThreadPoolExecutor(
-        max_workers=NUM_THREADS
-    ) as executor:
+            max_workers=NUM_THREADS) as executor:
         results = list(executor.map(worker, inputs))
 
     assert results == inputs, (
-        "Data corruption or input leakage detected in concurrent execution."
-    )
+        "Data corruption or input leakage detected in concurrent execution.")

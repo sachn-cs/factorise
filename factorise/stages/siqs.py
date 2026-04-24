@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import math
 import time
-from typing import TYPE_CHECKING
 from typing import Any
 
 from loguru import logger
@@ -27,9 +26,9 @@ from loguru import logger
 from factorise.config import HybridConfig
 from factorise.core import ensure_integer_input
 from factorise.core import is_prime
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 from factorise.stages._qs_shared import extract_factor
 from factorise.stages._qs_shared import factor_over_base
 from factorise.stages._qs_shared import find_dependency
@@ -76,10 +75,8 @@ class SIQSStage:
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=elapsed_ms(start),
-                reason=(
-                    f"n ({n.bit_length()} bits) exceeds SIQS maximum "
-                    f"({self.__max_bit_length} bits)"
-                ),
+                reason=(f"n ({n.bit_length()} bits) exceeds SIQS maximum "
+                        f"({self.__max_bit_length} bits)"),
             )
 
         if is_prime(n):

@@ -17,17 +17,16 @@ from __future__ import annotations
 
 import math
 import time
-from typing import TYPE_CHECKING
 from typing import Any
 
 from loguru import logger
 
 from factorise.core import FactoriserConfig
 from factorise.core import ensure_integer_input
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 from factorise.stages._qs_shared import extract_factor
 from factorise.stages._qs_shared import factor_over_base
 from factorise.stages._qs_shared import find_dependency
@@ -114,8 +113,8 @@ class QuadraticSieveStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=elapsed_ms(start),
-                reason=(
-                    f"n too large for QS ({n.bit_length()} bits > {MAX_QS_BIT_LENGTH})"
+                reason=
+                (f"n too large for QS ({n.bit_length()} bits > {MAX_QS_BIT_LENGTH})"
                 ),
             )
 
