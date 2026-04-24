@@ -22,15 +22,16 @@ from typing import Any
 
 from loguru import logger
 
-from source.core import FactoriserConfig
-from source.core import ensure_integer_input
-from source.pipeline import FactorStage
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
-from source.stages._qs_shared import extract_factor
-from source.stages._qs_shared import factor_over_base
-from source.stages._qs_shared import find_dependency
-from source.stages._qs_shared import is_small_prime
+from factorise.core import FactoriserConfig
+from factorise.core import ensure_integer_input
+from factorise.pipeline import elapsed_ms
+from factorise.pipeline import FactorStage
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
+from factorise.stages._qs_shared import extract_factor
+from factorise.stages._qs_shared import factor_over_base
+from factorise.stages._qs_shared import find_dependency
+from factorise.stages._qs_shared import is_small_prime
 
 logger.disable("factorise")
 
@@ -81,7 +82,7 @@ class QuadraticSieveStage(FactorStage):
             bound: Upper limit for primes in the factor base. Defaults to
                 DEFAULT_SMOOTHNESS_BOUND.
         """
-        self._bound = bound if bound is not None else DEFAULT_SMOOTHNESS_BOUND
+        self.__bound = bound if bound is not None else DEFAULT_SMOOTHNESS_BOUND
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         """Attempt to find a non-trivial factor of n using the Quadratic Sieve.
@@ -93,7 +94,7 @@ class QuadraticSieveStage(FactorStage):
         Returns:
             StageResult describing the outcome.
         """
-        from source.core import is_prime
+        from factorise.core import is_prime
 
         start = time.monotonic()
         ensure_integer_input(n)
@@ -103,7 +104,7 @@ class QuadraticSieveStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n < 3",
             )
 
@@ -112,7 +113,7 @@ class QuadraticSieveStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason=(
                     f"n too large for QS ({n.bit_length()} bits > {MAX_QS_BIT_LENGTH})"
                 ),
@@ -123,7 +124,7 @@ class QuadraticSieveStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n is prime",
             )
 
@@ -133,11 +134,11 @@ class QuadraticSieveStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=root_n,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n is a perfect square",
             )
 
-        factor = self._qs_find_factor(n)
+        factor = self.__qs_find_factor(n)
         if factor is not None and 1 < factor < n:
             logger.debug(
                 "stage={stage} n={n} factor={factor}",
@@ -149,18 +150,18 @@ class QuadraticSieveStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=factor,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
             )
 
         return StageResult(
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
+            elapsed_ms=elapsed_ms(start),
             reason="QS did not find a factor",
         )
 
-    def _qs_find_factor(self, n: int) -> int | None:
+    def __qs_find_factor(self, n: int) -> int | None:
         """Run the Quadratic Sieve to find a factor of n.
 
         Args:
@@ -169,11 +170,11 @@ class QuadraticSieveStage(FactorStage):
         Returns:
             A non-trivial factor, or None if no factor is found.
         """
-        prime_base = self._build_prime_base(n)
+        prime_base = self.__build_prime_base(n)
         if len(prime_base) < 2:
             return None
 
-        relations = self._find_smooth_relations(n, prime_base)
+        relations = self.__find_smooth_relations(n, prime_base)
         if len(relations) < len(prime_base):
             return None
 
@@ -184,7 +185,7 @@ class QuadraticSieveStage(FactorStage):
         factor = extract_factor(n, relations, dependency, prime_base)
         return factor
 
-    def _build_prime_base(self, n: int) -> list[int]:
+    def __build_prime_base(self, n: int) -> list[int]:
         """Build the factor base of primes where n is a quadratic residue.
 
         The factor base always includes -1 to handle negative values.
@@ -196,7 +197,7 @@ class QuadraticSieveStage(FactorStage):
             A list of primes (and -1) suitable for the factor base.
         """
         base = [-1]
-        limit = min(self._bound, MAX_SMALL_PRIME_DIVISOR)
+        limit = min(self.__bound, MAX_SMALL_PRIME_DIVISOR)
         for candidate in range(3, limit, 2):
             if not is_small_prime(candidate):
                 continue
@@ -207,7 +208,7 @@ class QuadraticSieveStage(FactorStage):
                 break
         return base
 
-    def _find_smooth_relations(
+    def __find_smooth_relations(
         self,
         n: int,
         prime_base: list[int],
@@ -250,14 +251,3 @@ class QuadraticSieveStage(FactorStage):
                     return relations
 
         return relations
-
-    def _elapsed_ms(self, start: float) -> float:
-        """Compute elapsed time in milliseconds.
-
-        Args:
-            start: The start time from time.monotonic().
-
-        Returns:
-            Elapsed time in milliseconds.
-        """
-        return (time.monotonic() - start) * 1000

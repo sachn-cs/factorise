@@ -6,8 +6,8 @@ Currently, only the latest major version sequence of the software is formally su
 
 | Version | Supported          |
 | ------- | ------------------ |
-| v0.1.x  | :white_check_mark: |
-| < 0.1   | :x:                |
+| v0.3.x  | :white_check_mark: |
+| < 0.3   | :x:                |
 
 ## Reporting a Vulnerability
 

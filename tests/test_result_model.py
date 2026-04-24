@@ -1,6 +1,6 @@
 """Tests for result-model edge behavior."""
 
-from source.core import FactorisationResult
+from factorise.core import FactorisationResult
 
 
 def test_result_expression_complex() -> None:

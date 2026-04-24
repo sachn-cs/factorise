@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from source.core import is_prime
+from factorise.core import is_prime
 
 SMALL_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]
 SMALL_COMPOSITES = [4, 6, 8, 9, 10, 12, 14, 15, 16, 18, 20, 25, 49, 77, 100]

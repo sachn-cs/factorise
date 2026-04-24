@@ -8,26 +8,20 @@ Pollard-Brent implementation.
 from __future__ import annotations
 
 from functools import reduce
-from typing import cast
 
 import pytest
 
-from source.core import (
-    collect_prime_factors as factor_flatten,
-    FactorisationError,
-    FactoriserConfig,
-    factorise,
-    find_nontrivial_factor_pollard_brent as pollard_brent,
-    is_prime,
-)
-from source.pipeline import (
-    FactorStage,
-    FactorisationPipeline,
-    PipelineConfig,
-    StageResult,
-    StageStatus,
-    TrialDivisionStage,
-)
+from factorise.core import FactorisationResult
+from factorise.core import FactoriserConfig
+from factorise.core import collect_prime_factors as factor_flatten
+from factorise.core import factorise
+from factorise.core import find_nontrivial_factor_pollard_brent as pollard_brent
+from factorise.core import is_prime
+from factorise.pipeline import FactorisationPipeline
+from factorise.pipeline import PipelineConfig
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
+from factorise.pipeline import TrialDivisionStage
 from tests.conftest import DEFAULT_CONFIG
 
 # ---------------------------------------------------------------------------
@@ -80,19 +74,19 @@ def _check_factorisation_result(n: int, result: FactorisationResult) -> None:
 class TestPipelineConstruction:
     def test_pipeline_default_constructs(self) -> None:
         pipeline = FactorisationPipeline()
-        assert pipeline._config is not None
+        assert pipeline.config is not None
 
     def test_pipeline_with_explicit_config(self) -> None:
         config = PipelineConfig(max_retries=5, batch_size=64)
         pipeline = FactorisationPipeline(config)
-        assert pipeline._config is config
+        assert pipeline.config is config
 
     def test_pipeline_stage_order(self) -> None:
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
         pipeline = FactorisationPipeline(config)
-        assert len(pipeline._stages) == 2
-        assert "trial_division" in pipeline._stages
-        assert "pollard_rho" in pipeline._stages
+        assert len(pipeline.stages) == 2
+        assert "trial_division" in pipeline.stages
+        assert "pollard_rho" in pipeline.stages
 
     def test_pipeline_config_stage_config(self) -> None:
         config = PipelineConfig(
@@ -124,12 +118,12 @@ class TestStageInterface:
         assert result.status is StageStatus.FAILURE
 
     def test_pollard_pminus1_stage(self) -> None:
-        from source.pipeline import PollardPMinusOneStage
+        from factorise.pipeline import PollardPMinusOneStage
 
         stage = PollardPMinusOneStage(bound=10**6)
         assert stage.name == "pollard_pminus1"
         # 91 = 7*13 — pollard p-1 might find a factor if smooth
-        result = stage.attempt(91, config=DEFAULT_CONFIG)
+        stage.attempt(91, config=DEFAULT_CONFIG)
         # Not guaranteed to succeed (depends on factor structure)
 
     def test_trial_division_stage_even_input(self) -> None:
@@ -418,7 +412,6 @@ class TestFailureIsolation:
         """When all stages fail, FactorisationError should be raised."""
         from unittest.mock import patch
 
-        from source.pipeline import StageResult
 
         # Patch trial_division to always fail and pollard_rho to always fail
         fail_result = StageResult(
@@ -433,7 +426,7 @@ class TestFailureIsolation:
             TrialDivisionStage, "attempt", return_value=fail_result
         ):
             with patch(
-                "source.stages.pollard_rho.PollardRhoStage.attempt",
+                "factorise.stages.pollard_rho.PollardRhoStage.attempt",
                 return_value=fail_result,
             ):
                 config = PipelineConfig(
@@ -525,7 +518,7 @@ class TestFactorStageInterface:
         """Every stage must have a non-empty name attribute."""
         config = PipelineConfig()
         pipeline = FactorisationPipeline(config)
-        for name, stage in pipeline._stages.items():
+        for name, stage in pipeline.stages.items():
             assert hasattr(stage, "name")
             assert stage.name == name
 
@@ -533,7 +526,7 @@ class TestFactorStageInterface:
         """Every stage must implement the attempt() method."""
         config = PipelineConfig()
         pipeline = FactorisationPipeline(config)
-        for stage in pipeline._stages.values():
+        for stage in pipeline.stages.values():
             assert hasattr(stage, "attempt")
             assert callable(stage.attempt)
 
@@ -573,7 +566,7 @@ class TestStageResultObservability:
 class TestGNFSStage:
     def test_gnfs_stage_not_available(self) -> None:
         """GNFS stage should skip when binary is not on PATH."""
-        from source.stages.gnfs import GNFSStage
+        from factorise.stages.gnfs import GNFSStage
 
         stage = GNFSStage(binary="nonexistent_gnfs_tool_xyz")
         result = stage.attempt(10**30, config=DEFAULT_CONFIG)
@@ -582,7 +575,7 @@ class TestGNFSStage:
 
     def test_gnfs_stage_small_input_skipped(self) -> None:
         """GNFS stage should skip very small inputs."""
-        from source.stages.gnfs import GNFSStage
+        from factorise.stages.gnfs import GNFSStage
 
         stage = GNFSStage(binary="msieve")
         result = stage.attempt(12, config=DEFAULT_CONFIG)
@@ -596,8 +589,8 @@ class TestGNFSStage:
 
 class TestECMStage:
     def test_ecm_stage_basic(self) -> None:
-        from source.stages.ecm import ECMStage
+        from factorise.stages.ecm import ECMStage
 
         stage = ECMStage(curves=5)
         assert stage.name == "ecm"
-        assert stage._curves == 5
+        assert stage.curves == 5

@@ -26,8 +26,8 @@ from rich.progress import TaskProgressColumn
 from rich.progress import TimeElapsedColumn
 from rich.progress import TimeRemainingColumn
 
-from source import FactoriserConfig
-from source import factorise
+from factorise import FactoriserConfig
+from factorise import factorise
 
 
 @dataclass(frozen=True)

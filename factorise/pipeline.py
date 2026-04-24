@@ -41,6 +41,16 @@ Correctness invariants
 
 from __future__ import annotations
 
+__all__ = [
+    "FactorStage",
+    "StageResult",
+    "StageStatus",
+    "PipelineConfig",
+    "FactorisationPipeline",
+    "TrialDivisionStage",
+    "PollardPMinusOneStage",
+]
+
 import dataclasses
 import enum
 import math
@@ -52,7 +62,7 @@ from typing import TYPE_CHECKING
 from loguru import logger
 
 if TYPE_CHECKING:
-    from source.core import FactoriserConfig
+    from factorise.core import FactoriserConfig
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -60,20 +70,20 @@ if TYPE_CHECKING:
 
 # Bound above which Pollard p-1 and ECM become worthwhile.
 # Below this, trial division + Rho is faster.
-_DEFAULT_BOUND_SMALL = 10**12
+DEFAULT_BOUND_SMALL = 10**12
 # Bound above which ECM becomes worthwhile relative to Rho.
-_DEFAULT_BOUND_MEDIUM = 10**20
+DEFAULT_BOUND_MEDIUM = 10**20
 # Bound above which QS becomes worthwhile relative to ECM.
-_DEFAULT_BOUND_LARGE = 10**40
+DEFAULT_BOUND_LARGE = 10**40
 # Bound above which GNFS becomes worthwhile relative to QS.
-_DEFAULT_BOUND_XLARGE = 10**80
+DEFAULT_BOUND_XLARGE = 10**80
 
 # Default smoothness bound for Pollard p-1 stage.
-_DEFAULT_PM1_BOUND = 10**6
+DEFAULT_PM1_BOUND = 10**6
 # Default number of ECM curves to try before giving up.
-_DEFAULT_ECM_CURVES = 20
+DEFAULT_ECM_CURVES = 20
 # Default timeout (seconds) for GNFS subprocess calls.
-_DEFAULT_GNFS_TIMEOUT_SECONDS = 600
+DEFAULT_GNFS_TIMEOUT_SECONDS = 600
 
 # ---------------------------------------------------------------------------
 # Stage result types
@@ -151,8 +161,9 @@ class FactorStage(ABC):
         """
         ...
 
-    def _elapsed_ms(self, start: float) -> float:
-        return (time.monotonic() - start) * 1000
+def elapsed_ms(start: float) -> float:
+    """Return elapsed milliseconds since *start* (from time.monotonic())."""
+    return (time.monotonic() - start) * 1000
 
 
 # ---------------------------------------------------------------------------
@@ -176,17 +187,17 @@ class TrialDivisionStage(FactorStage):
     name = "trial_division"
 
     def __init__(self, bound: int | None = None) -> None:
-        self._bound = bound if bound is not None else 10_000
+        self.__bound = bound if bound is not None else 10_000
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
-        from source.core import ensure_integer_input
-        from source.core import SMALL_PRIMES_FOR_TRIAL_DIVISION
+        from factorise.core import SMALL_PRIMES_FOR_TRIAL_DIVISION
+        from factorise.core import ensure_integer_input
 
         ensure_integer_input(n)
 
         for p in SMALL_PRIMES_FOR_TRIAL_DIVISION:
-            if self._bound and p > self._bound:
+            if self.__bound and p > self.__bound:
                 break
             if n % p == 0:
                 logger.debug(
@@ -199,7 +210,7 @@ class TrialDivisionStage(FactorStage):
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=p,
-                    elapsed_ms=self._elapsed_ms(start),
+                    elapsed_ms=elapsed_ms(start),
                     iterations_used=1,
                 )
 
@@ -212,7 +223,7 @@ class TrialDivisionStage(FactorStage):
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
+            elapsed_ms=elapsed_ms(start),
             reason="no small factor found in trial division",
         )
 
@@ -238,11 +249,11 @@ class PollardPMinusOneStage(FactorStage):
     name = "pollard_pminus1"
 
     def __init__(self, bound: int | None = None) -> None:
-        self._bound = bound if bound is not None else _DEFAULT_PM1_BOUND
+        self.__bound = bound if bound is not None else DEFAULT_PM1_BOUND
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
-        from source.core import ensure_integer_input
+        from factorise.core import ensure_integer_input
 
         ensure_integer_input(n)
 
@@ -251,12 +262,12 @@ class PollardPMinusOneStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n < 3",
             )
 
         for base in (2, 3, 5, 7, 11):
-            a = pow(base, self._bound, n)
+            a = pow(base, self.__bound, n)
             g = math.gcd(a - 1, n)
             if 1 < g < n:
                 logger.debug(
@@ -270,7 +281,7 @@ class PollardPMinusOneStage(FactorStage):
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=g,
-                    elapsed_ms=self._elapsed_ms(start),
+                    elapsed_ms=elapsed_ms(start),
                     iterations_used=1,
                 )
 
@@ -278,8 +289,8 @@ class PollardPMinusOneStage(FactorStage):
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
-            reason=f"no factor found with bound={self._bound}",
+            elapsed_ms=elapsed_ms(start),
+            reason=f"no factor found with bound={self.__bound}",
         )
 
 
@@ -311,15 +322,15 @@ class PipelineConfig:
             Unknown names are ignored.
     """
 
-    bound_small: int = _DEFAULT_BOUND_SMALL
-    bound_medium: int = _DEFAULT_BOUND_MEDIUM
-    bound_large: int = _DEFAULT_BOUND_LARGE
-    bound_xlarge: int = _DEFAULT_BOUND_XLARGE
+    bound_small: int = DEFAULT_BOUND_SMALL
+    bound_medium: int = DEFAULT_BOUND_MEDIUM
+    bound_large: int = DEFAULT_BOUND_LARGE
+    bound_xlarge: int = DEFAULT_BOUND_XLARGE
 
     trial_division_bound: int = 10_000
-    pm1_bound: int = _DEFAULT_PM1_BOUND
-    ecm_curves: int = _DEFAULT_ECM_CURVES
-    gnfs_timeout: int = _DEFAULT_GNFS_TIMEOUT_SECONDS
+    pm1_bound: int = DEFAULT_PM1_BOUND
+    ecm_curves: int = DEFAULT_ECM_CURVES
+    gnfs_timeout: int = DEFAULT_GNFS_TIMEOUT_SECONDS
     gnfs_binary: str = "msieve"
 
     max_iterations: int = 10_000_000
@@ -338,7 +349,7 @@ class PipelineConfig:
 
     def stage_config(self, stage_name: str) -> FactoriserConfig:
         """Derive a FactoriserConfig for a named stage."""
-        from source.core import FactoriserConfig
+        from factorise.core import FactoriserConfig
 
         return FactoriserConfig(
             batch_size=self.batch_size,
@@ -358,28 +369,28 @@ class PipelineConfig:
 
         return cls(
             bound_small=int(
-                os.getenv("FACTORISE_BOUND_SMALL", str(_DEFAULT_BOUND_SMALL))
+                os.getenv("FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL))
             ),
             bound_medium=int(
-                os.getenv("FACTORISE_BOUND_MEDIUM", str(_DEFAULT_BOUND_MEDIUM))
+                os.getenv("FACTORISE_BOUND_MEDIUM", str(DEFAULT_BOUND_MEDIUM))
             ),
             bound_large=int(
-                os.getenv("FACTORISE_BOUND_LARGE", str(_DEFAULT_BOUND_LARGE))
+                os.getenv("FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE))
             ),
             bound_xlarge=int(
-                os.getenv("FACTORISE_BOUND_XLARGE", str(_DEFAULT_BOUND_XLARGE))
+                os.getenv("FACTORISE_BOUND_XLARGE", str(DEFAULT_BOUND_XLARGE))
             ),
             trial_division_bound=int(
                 os.getenv("FACTORISE_TRIAL_DIVISION_BOUND", "10000")
             ),
             pm1_bound=int(
-                os.getenv("FACTORISE_PM1_BOUND", str(_DEFAULT_PM1_BOUND))
+                os.getenv("FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND))
             ),
             ecm_curves=int(
-                os.getenv("FACTORISE_ECM_CURVES", str(_DEFAULT_ECM_CURVES))
+                os.getenv("FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES))
             ),
             gnfs_timeout=int(
-                os.getenv("FACTORISE_GNFS_TIMEOUT", str(_DEFAULT_GNFS_TIMEOUT_SECONDS))
+                os.getenv("FACTORISE_GNFS_TIMEOUT", str(DEFAULT_GNFS_TIMEOUT_SECONDS))
             ),
             gnfs_binary=os.getenv("FACTORISE_GNFS_BINARY", "msieve"),
             max_iterations=int(
@@ -410,47 +421,57 @@ class FactorisationPipeline:
     """
 
     def __init__(self, config: PipelineConfig | None = None) -> None:
-        self._config = config if config is not None else PipelineConfig()
-        self._stages: dict[str, FactorStage] = {}
-        self._build_stages()
+        self.__config = config if config is not None else PipelineConfig()
+        self.__stages: dict[str, FactorStage] = {}
+        self.__build_stages()
 
-    def _build_stages(self) -> None:
+    @property
+    def config(self) -> PipelineConfig:
+        """Return the pipeline configuration."""
+        return self.__config
+
+    @property
+    def stages(self) -> dict[str, FactorStage]:
+        """Return a shallow copy of the internal stage mapping."""
+        return dict(self.__stages)
+
+    def __build_stages(self) -> None:
         """Instantiate stage handlers based on the configured stage order."""
-        for name in self._config.enabled_stages():
+        for name in self.__config.enabled_stages():
             if name == "trial_division":
-                self._stages[name] = TrialDivisionStage(
-                    bound=self._config.trial_division_bound
+                self.__stages[name] = TrialDivisionStage(
+                    bound=self.__config.trial_division_bound
                 )
             elif name == "pollard_pminus1":
-                self._stages[name] = PollardPMinusOneStage(
-                    bound=self._config.pm1_bound
+                self.__stages[name] = PollardPMinusOneStage(
+                    bound=self.__config.pm1_bound
                 )
             elif name == "pollard_rho":
-                from source.stages.pollard_rho import PollardRhoStage
+                from factorise.stages.pollard_rho import PollardRhoStage
 
-                self._stages[name] = PollardRhoStage(
-                    max_retries=self._config.max_retries,
-                    max_iterations=self._config.max_iterations,
-                    batch_size=self._config.batch_size,
-                    seed=self._config.seed,
+                self.__stages[name] = PollardRhoStage(
+                    max_retries=self.__config.max_retries,
+                    max_iterations=self.__config.max_iterations,
+                    batch_size=self.__config.batch_size,
+                    seed=self.__config.seed,
                 )
             elif name == "ecm":
-                from source.stages.ecm import ECMStage
+                from factorise.stages.ecm import ECMStage
 
-                self._stages[name] = ECMStage(
-                    curves=self._config.ecm_curves,
-                    bound=self._config.bound_medium,
+                self.__stages[name] = ECMStage(
+                    curves=self.__config.ecm_curves,
+                    bound=self.__config.bound_medium,
                 )
             elif name == "quadratic_sieve":
-                from source.stages.quadratic_sieve import QuadraticSieveStage
+                from factorise.stages.quadratic_sieve import QuadraticSieveStage
 
-                self._stages[name] = QuadraticSieveStage()
+                self.__stages[name] = QuadraticSieveStage()
             elif name == "gnfs":
-                from source.stages.gnfs import GNFSStage
+                from factorise.stages.gnfs import GNFSStage
 
-                self._stages[name] = GNFSStage(
-                    binary=self._config.gnfs_binary,
-                    timeout_seconds=self._config.gnfs_timeout,
+                self.__stages[name] = GNFSStage(
+                    binary=self.__config.gnfs_binary,
+                    timeout_seconds=self.__config.gnfs_timeout,
                 )
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
@@ -470,7 +491,7 @@ class FactorisationPipeline:
             On SUCCESS, the factor field contains a non-trivial factor;
             callers must use it to split the number and recurse.
         """
-        from source.core import is_prime
+        from factorise.core import is_prime
 
         start = time.monotonic()
 
@@ -479,7 +500,7 @@ class FactorisationPipeline:
                 stage_name="pipeline",
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n < 2",
             )
 
@@ -488,13 +509,13 @@ class FactorisationPipeline:
                 stage_name="pipeline",
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n is prime",
             )
 
         failures: list[str] = []
-        for stage_name in self._config.enabled_stages():
-            stage = self._stages.get(stage_name)
+        for stage_name in self.__config.enabled_stages():
+            stage = self.__stages.get(stage_name)
             if stage is None:
                 continue
 
@@ -514,7 +535,7 @@ class FactorisationPipeline:
                     stage_name="pipeline",
                     status=StageStatus.SUCCESS,
                     factor=result.factor,
-                    elapsed_ms=self._elapsed_ms(start),
+                    elapsed_ms=elapsed_ms(start),
                     iterations_used=result.iterations_used,
                 )
 
@@ -527,12 +548,9 @@ class FactorisationPipeline:
             stage_name="pipeline",
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
+            elapsed_ms=elapsed_ms(start),
             reason="; ".join(failures) if failures else "all stages failed",
         )
-
-    def _elapsed_ms(self, start: float) -> float:
-        return (time.monotonic() - start) * 1000
 
 
 # ---------------------------------------------------------------------------

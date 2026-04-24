@@ -24,15 +24,16 @@ from typing import Any
 
 from loguru import logger
 
-from source.config import HybridConfig
-from source.core import ensure_integer_input
-from source.core import is_prime
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
-from source.stages._qs_shared import extract_factor
-from source.stages._qs_shared import factor_over_base
-from source.stages._qs_shared import find_dependency
-from source.stages._qs_shared import is_small_prime
+from factorise.config import HybridConfig
+from factorise.core import ensure_integer_input
+from factorise.core import is_prime
+from factorise.pipeline import elapsed_ms
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
+from factorise.stages._qs_shared import extract_factor
+from factorise.stages._qs_shared import factor_over_base
+from factorise.stages._qs_shared import find_dependency
+from factorise.stages._qs_shared import is_small_prime
 
 logger.disable("factorise")
 
@@ -54,7 +55,7 @@ class SIQSStage:
     name = "siqs"
 
     def __init__(self, max_bit_length: int | None = None) -> None:
-        self._max_bit_length = max_bit_length if max_bit_length is not None else MAX_SIQS_BIT_LENGTH
+        self.__max_bit_length = max_bit_length if max_bit_length is not None else MAX_SIQS_BIT_LENGTH
 
     def attempt(self, n: int, *, config: HybridConfig) -> StageResult:
         start = time.monotonic()
@@ -65,19 +66,19 @@ class SIQSStage:
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n < 3",
             )
 
-        if n.bit_length() > self._max_bit_length:
+        if n.bit_length() > self.__max_bit_length:
             return StageResult(
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason=(
                     f"n ({n.bit_length()} bits) exceeds SIQS maximum "
-                    f"({self._max_bit_length} bits)"
+                    f"({self.__max_bit_length} bits)"
                 ),
             )
 
@@ -86,7 +87,7 @@ class SIQSStage:
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n is prime",
             )
 
@@ -95,7 +96,7 @@ class SIQSStage:
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=2,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 iterations_used=1,
             )
 
@@ -105,11 +106,11 @@ class SIQSStage:
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=root_n,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n is a perfect square",
             )
 
-        factor = self._siqs_find_factor(n)
+        factor = self.__siqs_find_factor(n)
         if factor is not None and 1 < factor < n:
             logger.debug(
                 "stage={stage} n={n} factor={factor}",
@@ -121,25 +122,25 @@ class SIQSStage:
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=factor,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
             )
 
         return StageResult(
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
+            elapsed_ms=elapsed_ms(start),
             reason="SIQS found no factor",
         )
 
-    def _siqs_find_factor(self, n: int) -> int | None:
-        B = self._compute_smoothness_bound(n)
-        factor_base = self._build_factor_base(n, B)
+    def __siqs_find_factor(self, n: int) -> int | None:
+        B = self.__compute_smoothness_bound(n)
+        factor_base = self.__build_factor_base(n, B)
         if len(factor_base) < MIN_RELATIONS:
             return None
 
         target = len(factor_base) + 5
-        relations = self._find_smooth_relations(n, factor_base, target)
+        relations = self.__find_smooth_relations(n, factor_base, target)
         if len(relations) < len(factor_base):
             return None
 
@@ -149,7 +150,7 @@ class SIQSStage:
 
         return extract_factor(n, relations, dependency, factor_base)
 
-    def _compute_smoothness_bound(self, n: int) -> int:
+    def __compute_smoothness_bound(self, n: int) -> int:
         log_n = math.log(n)
         log_log_n = math.log(log_n)
         B = int(math.exp(math.sqrt(log_n * log_log_n) / 2))
@@ -157,7 +158,7 @@ class SIQSStage:
         B = min(B, 100_000)
         return B
 
-    def _build_factor_base(self, n: int, B: int) -> list[int]:
+    def __build_factor_base(self, n: int, B: int) -> list[int]:
         base: list[int] = [-1]
         limit = min(B, MAX_SMALL_PRIME_DIVISOR)
         for candidate in range(3, limit, 2):
@@ -170,7 +171,7 @@ class SIQSStage:
                 break
         return base
 
-    def _find_smooth_relations(
+    def __find_smooth_relations(
         self,
         n: int,
         factor_base: list[int],
@@ -199,6 +200,3 @@ class SIQSStage:
                     return relations
 
         return relations
-
-    def _elapsed_ms(self, start: float) -> float:
-        return (time.monotonic() - start) * 1000

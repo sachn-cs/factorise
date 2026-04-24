@@ -32,12 +32,12 @@ import time
 
 from loguru import logger
 
-from source.core import FactorisationError
-from source.core import FactoriserConfig
-from source.core import is_prime
-from source.pipeline import FactorStage
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
+from factorise.core import FactorisationError
+from factorise.core import FactoriserConfig
+from factorise.core import is_prime
+from factorise.pipeline import FactorStage
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
 
 logger.disable("factorise")
 
@@ -64,11 +64,11 @@ class GNFSStage(FactorStage):
         binary: str = "msieve",
         timeout_seconds: int = 600,
     ) -> None:
-        self._binary = binary
-        self._timeout_seconds = timeout_seconds
+        self.__binary = binary
+        self.__timeout_seconds = timeout_seconds
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
-        from source.core import ensure_integer_input
+        from factorise.core import ensure_integer_input
 
         start = time.monotonic()
         ensure_integer_input(n)
@@ -109,7 +109,7 @@ class GNFSStage(FactorStage):
                 reason="n is prime",
             )
 
-        if not self._is_tool_available():
+        if not self.is_tool_available():
             logger.debug(
                 "stage={stage} status=SKIPPED reason=binary_not_found",
                 stage=self.name,
@@ -119,11 +119,11 @@ class GNFSStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=(time.monotonic() - start) * 1000,
-                reason=f"GNFS binary {self._binary!r} not found on PATH",
+                reason=f"GNFS binary {self.__binary!r} not found on PATH",
             )
 
         try:
-            factor = self._run_external_gnfs(n)
+            factor = self.run_external_gnfs(n)
             if factor is not None and 1 < factor < n:
                 logger.debug(
                     "stage={stage} n={n} factor={factor}",
@@ -153,15 +153,15 @@ class GNFSStage(FactorStage):
             reason=f"GNFS failed for n={n}",
         )
 
-    def _is_tool_available(self) -> bool:
+    def is_tool_available(self) -> bool:
         """Return True if the GNFS binary is found on PATH."""
-        return shutil.which(self._binary) is not None
+        return shutil.which(self.__binary) is not None
 
-    def _run_external_gnfs(self, n: int) -> int | None:
+    def run_external_gnfs(self, n: int) -> int | None:
         """Run the external GNFS tool on n and return a factor if found."""
-        if not shutil.which(self._binary):
+        if not shutil.which(self.__binary):
             raise FactorisationError(
-                f"GNFS binary {self._binary!r} not found on PATH"
+                f"GNFS binary {self.__binary!r} not found on PATH"
             )
 
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -171,22 +171,22 @@ class GNFSStage(FactorStage):
             with open(input_file, "w") as inp:
                 inp.write(f"{n}\n")
 
-            cmd = self._build_command(input_file, fact_file, tmpdir, n)
+            cmd = self.build_command(input_file, fact_file, tmpdir, n)
 
             try:
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=self._timeout_seconds,
+                    timeout=self.__timeout_seconds,
                     cwd=tmpdir,
                 )
             except subprocess.TimeoutExpired:  # noqa: B904
                 raise FactorisationError(  # noqa: B904
-                    f"GNFS timed out after {self._timeout_seconds}s for n={n}"
+                    f"GNFS timed out after {self.__timeout_seconds}s for n={n}"
                 ) from None
 
-            factors = self._parse_factor_output(result.stdout + result.stderr, fact_file)
+            factors = self.parse_factor_output(result.stdout + result.stderr, fact_file)
             if factors:
                 for f in factors:
                     if is_prime(f) and n % f == 0:
@@ -200,30 +200,30 @@ class GNFSStage(FactorStage):
 
             raise FactorisationError(f"GNFS produced no parseable factors for n={n}")
 
-    def _build_command(
+    def build_command(
         self, input_file: str, fact_file: str, tmpdir: str, n: int
     ) -> list[str]:
         """Build the subprocess command for the GNFS tool."""
-        if self._binary == "msieve":
+        if self.__binary == "msieve":
             return [
-                self._binary,
+                self.__binary,
                 "-v",
                 "-f",
                 fact_file,
                 input_file,
             ]
-        if self._binary == "cado-nfs":
+        if self.__binary == "cado-nfs":
             log_file = os.path.join(tmpdir, "cado.log")
             return [
-                self._binary,
+                self.__binary,
                 "tasks.factor.bswap_nwords=1",
                 "tasks.linalg.bwc.threads=1",
                 f"outputlogfile={log_file}",
                 str(n),
             ]
-        return [self._binary, input_file]
+        return [self.__binary, input_file]
 
-    def _parse_factor_output(
+    def parse_factor_output(
         self, output: str, fact_file: str | None = None
     ) -> list[int]:
         """Parse prime factors from GNFS tool output."""
@@ -245,11 +245,11 @@ class GNFSStage(FactorStage):
             r"^\s*(\d{5,})\s*$", output, re.MULTILINE
         ):
             candidate = int(match.group(1))
-            if self._looks_like_prime(candidate):
+            if self.looks_like_prime(candidate):
                 factors.append(candidate)
 
         return sorted(set(factors))
 
-    def _looks_like_prime(self, n: int) -> bool:
+    def looks_like_prime(self, n: int) -> bool:
         """Quick primality check for parsed factors."""
         return is_prime(n)

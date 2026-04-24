@@ -17,30 +17,32 @@ and re-routed by digit count. The stack processes the smaller factor first
 
 from __future__ import annotations
 
+__all__ = ["HybridFactorisationEngine", "hybrid_factorise"]
+
 from collections import Counter
 
 from loguru import logger
 
-from source.config import LARGE_INTEGER_BIT_BOUND
-from source.config import MEDIUM_INTEGER_BIT_BOUND
-from source.config import SIQS_INTEGER_BIT_BOUND
-from source.config import SMALL_INTEGER_BIT_BOUND
-from source.config import XLARGE_INTEGER_BIT_BOUND
-from source.config import GNFS_MAXIMUM_BIT_LENGTH
-from source.config import GNFS_MINIMUM_BIT_LENGTH
-from source.config import HybridConfig
-from source.core import EXTENDED_SMALL_PRIMES
-from source.core import FactorisationError
-from source.core import FactorisationResult
-from source.core import find_perfect_power
-from source.core import has_carmichael_property
-from source.core import is_prime
-from source.core import ensure_integer_input
-from source.pipeline import StageStatus
-from source.stages.ecm_two_pass import TwoPassECMStage
-from source.stages.improved_pm1 import ImprovedPollardPMinusOneStage
-from source.stages.siqs import SIQSStage
-from source.stages.trial_division import OptimizedTrialDivisionStage
+from factorise.config import GNFS_MAXIMUM_BIT_LENGTH
+from factorise.config import GNFS_MINIMUM_BIT_LENGTH
+from factorise.config import LARGE_INTEGER_BIT_BOUND
+from factorise.config import MEDIUM_INTEGER_BIT_BOUND
+from factorise.config import SIQS_INTEGER_BIT_BOUND
+from factorise.config import SMALL_INTEGER_BIT_BOUND
+from factorise.config import XLARGE_INTEGER_BIT_BOUND
+from factorise.config import HybridConfig
+from factorise.core import EXTENDED_SMALL_PRIMES
+from factorise.core import FactorisationError
+from factorise.core import FactorisationResult
+from factorise.core import ensure_integer_input
+from factorise.core import find_perfect_power
+from factorise.core import has_carmichael_property
+from factorise.core import is_prime
+from factorise.pipeline import StageStatus
+from factorise.stages.ecm_two_pass import TwoPassECMStage
+from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
+from factorise.stages.siqs import SIQSStage
+from factorise.stages.trial_division import OptimizedTrialDivisionStage
 
 logger.disable("factorise")
 
@@ -71,20 +73,20 @@ def select_algorithm_by_bit_length(
 
     # ---- ≤ 40 bits: trial division + Pollard Rho ----
     if bit_length <= SMALL_INTEGER_BIT_BOUND:
-        result = trial_stage.attempt(n, config=config)
+        result = trial_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         return invoke_pollard_rho(n, config)
 
     # ---- 41-66 bits: PM1 → Rho → ECM ----
     if bit_length <= MEDIUM_INTEGER_BIT_BOUND:
-        result = pm1_stage.attempt(n, config=config)
+        result = pm1_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         factor = invoke_pollard_rho(n, config)
         if factor is not None:
             return factor
-        result = ecm_stage.attempt(n, config=config)
+        result = ecm_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         return None
@@ -94,27 +96,27 @@ def select_algorithm_by_bit_length(
         factor = invoke_pollard_rho(n, config)
         if factor is not None:
             return factor
-        result = ecm_stage.attempt(n, config=config)
+        result = ecm_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
-        result = pm1_stage.attempt(n, config=config)
+        result = pm1_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         return None
 
     # ---- 134-233 bits: ECM → SIQS → Rho ----
     if bit_length <= XLARGE_INTEGER_BIT_BOUND:
-        result = ecm_stage.attempt(n, config=config)
+        result = ecm_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
-        result = siqs_stage.attempt(n, config=config)
+        result = siqs_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         return invoke_pollard_rho(n, config)
 
     # ---- 234-366 bits: SIQS → GNFS ----
     if bit_length <= SIQS_INTEGER_BIT_BOUND:
-        result = siqs_stage.attempt(n, config=config)
+        result = siqs_stage.attempt(n, config=config)  # type: ignore[arg-type]
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             return result.factor
         return invoke_external_gnfs(n, config)
@@ -125,8 +127,8 @@ def select_algorithm_by_bit_length(
 
 def invoke_pollard_rho(n: int, config: HybridConfig) -> int | None:
     """Find a non-trivial factor using Pollard's Rho (Brent)."""
-    from source.core import FactoriserConfig
-    from source.core import find_nontrivial_factor_pollard_brent
+    from factorise.core import FactoriserConfig
+    from factorise.core import find_nontrivial_factor_pollard_brent
 
     cfg = FactoriserConfig(
         batch_size=config.rho_batch_size,
@@ -141,7 +143,7 @@ def invoke_pollard_rho(n: int, config: HybridConfig) -> int | None:
 
 def invoke_external_gnfs(n: int, config: HybridConfig) -> int | None:
     """Attempt GNFS via external tool adapter."""
-    from source.stages.gnfs import GNFSStage
+    from factorise.stages.gnfs import GNFSStage
 
     bit_length = n.bit_length()
     if bit_length < GNFS_MINIMUM_BIT_LENGTH or bit_length > GNFS_MAXIMUM_BIT_LENGTH:
@@ -150,7 +152,7 @@ def invoke_external_gnfs(n: int, config: HybridConfig) -> int | None:
         binary=config.gnfs_external_tool_name,
         timeout_seconds=config.gnfs_timeout_seconds,
     )
-    from source.core import FactoriserConfig
+    from factorise.core import FactoriserConfig
     result = stage.attempt(n, config=FactoriserConfig())
     if result.status is StageStatus.SUCCESS and result.factor is not None:
         return result.factor
@@ -172,22 +174,22 @@ class HybridFactorisationEngine:
     """
 
     def __init__(self, config: HybridConfig | None = None) -> None:
-        self._config = config if config is not None else HybridConfig()
-        self._trial_stage = OptimizedTrialDivisionStage(
-            bound=self._config.trial_division_bound,
+        self.__config = config if config is not None else HybridConfig()
+        self.__trial_stage = OptimizedTrialDivisionStage(
+            bound=self.__config.trial_division_bound,
             prime_table=EXTENDED_SMALL_PRIMES,
         )
-        self._pm1_stage = ImprovedPollardPMinusOneStage(
-            bounds=self._config.pm1_smoothness_bounds,
-            bases=self._config.pm1_trial_bases,
+        self.__pm1_stage = ImprovedPollardPMinusOneStage(
+            bounds=self.__config.pm1_smoothness_bounds,
+            bases=self.__config.pm1_trial_bases,
         )
-        self._ecm_stage = TwoPassECMStage(
-            first_pass_curves=self._config.ecm_first_pass_curves,
-            first_pass_bound=self._config.ecm_first_pass_bound,
-            second_pass_curves=self._config.ecm_second_pass_curves,
-            second_pass_bound=self._config.ecm_second_pass_bound,
+        self.__ecm_stage = TwoPassECMStage(
+            first_pass_curves=self.__config.ecm_first_pass_curves,
+            first_pass_bound=self.__config.ecm_first_pass_bound,
+            second_pass_curves=self.__config.ecm_second_pass_curves,
+            second_pass_bound=self.__config.ecm_second_pass_bound,
         )
-        self._siqs_stage = SIQSStage(max_bit_length=self._config.siqs_max_bit_length)
+        self.__siqs_stage = SIQSStage(max_bit_length=self.__config.siqs_max_bit_length)
 
     def attempt(self, n: int) -> FactorisationResult:
         """Factorise *n* and return the complete prime decomposition.
@@ -223,7 +225,7 @@ class HybridFactorisationEngine:
         abs_n = abs(n)
 
         # ---- Phase 1: Perfect power detection ----
-        if self._config.perfect_power_check:
+        if self.__config.perfect_power_check:
             power_result = find_perfect_power(abs_n)
             if power_result is not None:
                 inner = self.attempt(power_result.base)
@@ -252,7 +254,7 @@ class HybridFactorisationEngine:
             )
 
         # ---- Phase 3: Carmichael detection (optional) ----
-        if self._config.carmichael_check and has_carmichael_property(abs_n):
+        if self.__config.carmichael_check and has_carmichael_property(abs_n):
             logger.info("n={n} is Carmichael, proceeding with factorisation", n=n)
 
         # ---- Phase 4: Even number fast path ----
@@ -282,11 +284,11 @@ class HybridFactorisationEngine:
 
             factor = select_algorithm_by_bit_length(
                 current,
-                self._config,
-                self._trial_stage,
-                self._pm1_stage,
-                self._ecm_stage,
-                self._siqs_stage,
+                self.__config,
+                self.__trial_stage,
+                self.__pm1_stage,
+                self.__ecm_stage,
+                self.__siqs_stage,
             )
             if factor is None:
                 raise FactorisationError(

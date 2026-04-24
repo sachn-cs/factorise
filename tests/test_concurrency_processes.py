@@ -2,8 +2,8 @@
 
 import multiprocessing
 
-from source.core import FactoriserConfig
-from source.core import factorise
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
 
 # Use a known semiprime (83 * 97)
 SEMIPRIME = 8051

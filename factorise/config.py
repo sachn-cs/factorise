@@ -5,6 +5,8 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Sequence
 
+__all__ = ["HybridConfig", "HybridFactorisationState"]
+
 # ---------------------------------------------------------------------------
 # Thresholds
 # ---------------------------------------------------------------------------
@@ -210,7 +212,11 @@ class HybridFactorisationState:
     total_iterations: int = 0
 
     def pop_next_composite(self) -> int | None:
-        """Pop the next composite off the stack, skipping primes."""
+        """Pop the next value off the composite stack.
+
+        Returns:
+            The next value from the stack, or None if the stack is empty.
+        """
         while self.composite_stack:
             current = self.composite_stack.pop()
             return current

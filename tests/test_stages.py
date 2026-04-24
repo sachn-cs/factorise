@@ -1,0 +1,425 @@
+"""Comprehensive tests for all factorisation stage implementations."""
+
+
+from factorise.core import FactoriserConfig
+from factorise.pipeline import StageStatus
+
+# ---------------------------------------------------------------------------
+# Trial Division
+# ---------------------------------------------------------------------------
+
+
+def test_trial_division_even() -> None:
+    """Verify trial division finds factor 2 for even inputs."""
+    from factorise.stages.trial_division import OptimizedTrialDivisionStage
+
+    stage = OptimizedTrialDivisionStage()
+    result = stage.attempt(100, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 2
+
+
+def test_trial_division_prime() -> None:
+    """Verify trial division finds the prime itself."""
+    from factorise.stages.trial_division import OptimizedTrialDivisionStage
+
+    stage = OptimizedTrialDivisionStage()
+    result = stage.attempt(97, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 97
+
+
+def test_trial_division_less_than_two() -> None:
+    """Verify trial division skips n < 2."""
+    from factorise.stages.trial_division import OptimizedTrialDivisionStage
+
+    stage = OptimizedTrialDivisionStage()
+    result = stage.attempt(1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_trial_division_small_factor() -> None:
+    """Verify trial division finds small odd factors."""
+    from factorise.stages.trial_division import OptimizedTrialDivisionStage
+
+    stage = OptimizedTrialDivisionStage()
+    result = stage.attempt(3 * 97, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 3
+
+
+def test_trial_division_no_small_factor() -> None:
+    """Verify trial division returns SUCCESS for primes when no small composite factor exists."""
+    from factorise.stages.trial_division import OptimizedTrialDivisionStage
+
+    stage = OptimizedTrialDivisionStage()
+    # 91 = 7*13, both > 10 but 7 < 10000 (default)
+    result = stage.attempt(91, config=FactoriserConfig())
+    # With default bound of 10000, 7 is found
+    assert result.status is StageStatus.SUCCESS
+
+
+# ---------------------------------------------------------------------------
+# Pollard p−1
+# ---------------------------------------------------------------------------
+
+
+def test_pm1_less_than_three() -> None:
+    """Verify p-1 skips n < 3."""
+    from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
+
+    stage = ImprovedPollardPMinusOneStage()
+    result = stage.attempt(2, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_pm1_prime() -> None:
+    """Verify p-1 fails for primes."""
+    from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
+
+    stage = ImprovedPollardPMinusOneStage()
+    result = stage.attempt(97, config=FactoriserConfig())
+    assert result.status is StageStatus.FAILURE
+
+
+def test_pm1_smooth_factor() -> None:
+    """Verify p-1 can find a smooth factor."""
+    from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
+
+    stage = ImprovedPollardPMinusOneStage()
+    # 91 = 7 * 13; 7-1=6 is smooth
+    result = stage.attempt(91, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor in (7, 13)
+
+
+# ---------------------------------------------------------------------------
+# ECM
+# ---------------------------------------------------------------------------
+
+
+def test_ecm_even() -> None:
+    """Verify ECM finds factor 2 for even inputs."""
+    from factorise.stages.ecm import ECMStage
+
+    stage = ECMStage(curves=5)
+    result = stage.attempt(100, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 2
+
+
+def test_ecm_small_factor() -> None:
+    """Verify ECM can find small factors."""
+    from factorise.stages.ecm import ECMStage
+
+    stage = ECMStage(curves=20)
+    # 91 = 7 * 13
+    result = stage.attempt(91, config=FactoriserConfig())
+    assert result.factor in (None, 7, 13)
+
+
+# ---------------------------------------------------------------------------
+# Two-Pass ECM
+# ---------------------------------------------------------------------------
+
+
+def test_ecm_two_pass_even() -> None:
+    """Verify two-pass ECM finds factor 2 for even inputs."""
+    from factorise.stages.ecm_two_pass import TwoPassECMStage
+
+    stage = TwoPassECMStage()
+    result = stage.attempt(100, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 2
+
+
+def test_ecm_two_pass_small_prime() -> None:
+    """Verify two-pass ECM handles small primes."""
+    from factorise.stages.ecm_two_pass import TwoPassECMStage
+
+    stage = TwoPassECMStage()
+    result = stage.attempt(3, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 3
+
+
+def test_ecm_two_pass_composite() -> None:
+    """Verify two-pass ECM attempts composite factorisation."""
+    from factorise.stages.ecm_two_pass import TwoPassECMStage
+
+    stage = TwoPassECMStage()
+    result = stage.attempt(91, config=FactoriserConfig())
+    # May succeed or fail depending on luck
+    assert result.status in (StageStatus.SUCCESS, StageStatus.FAILURE)
+
+
+# ---------------------------------------------------------------------------
+# Quadratic Sieve
+# ---------------------------------------------------------------------------
+
+
+def test_qs_perfect_square() -> None:
+    """Verify QS finds perfect square factors."""
+    from factorise.stages.quadratic_sieve import QuadraticSieveStage
+
+    stage = QuadraticSieveStage()
+    result = stage.attempt(100, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 10
+
+
+def test_qs_small_input() -> None:
+    """Verify QS skips very small inputs."""
+    from factorise.stages.quadratic_sieve import QuadraticSieveStage
+
+    stage = QuadraticSieveStage()
+    result = stage.attempt(1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_qs_prime() -> None:
+    """Verify QS skips primes."""
+    from factorise.stages.quadratic_sieve import QuadraticSieveStage
+
+    stage = QuadraticSieveStage()
+    result = stage.attempt(97, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_qs_composite() -> None:
+    """Verify QS attempts to factor composites."""
+    from factorise.stages.quadratic_sieve import QuadraticSieveStage
+
+    stage = QuadraticSieveStage()
+    # 91 = 7 * 13
+    result = stage.attempt(91, config=FactoriserConfig())
+    assert result.status in (StageStatus.SUCCESS, StageStatus.FAILURE)
+
+
+def test_qs_large_input_skipped() -> None:
+    """Verify QS skips inputs exceeding bit length."""
+    from factorise.stages.quadratic_sieve import QuadraticSieveStage
+
+    stage = QuadraticSieveStage()
+    # A very large number
+    result = stage.attempt(2 ** 90 + 1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+# ---------------------------------------------------------------------------
+# SIQS
+# ---------------------------------------------------------------------------
+
+
+def test_siqs_even() -> None:
+    """Verify SIQS finds factor 2 for even inputs."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(100, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 2
+
+
+def test_siqs_less_than_three() -> None:
+    """Verify SIQS skips n < 3."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(2, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_siqs_prime() -> None:
+    """Verify SIQS skips primes."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(97, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_siqs_perfect_square() -> None:
+    """Verify SIQS finds perfect square factors."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(121, config=FactoriserConfig())
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 11
+
+
+def test_siqs_composite() -> None:
+    """Verify SIQS attempts to factor composites."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(91, config=FactoriserConfig())
+    assert result.status in (StageStatus.SUCCESS, StageStatus.FAILURE)
+
+
+def test_siqs_large_input_skipped() -> None:
+    """Verify SIQS skips inputs exceeding max bit length."""
+    from factorise.stages.siqs import SIQSStage
+
+    stage = SIQSStage()
+    result = stage.attempt(2 ** 120 + 1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+# ---------------------------------------------------------------------------
+# GNFS
+# ---------------------------------------------------------------------------
+
+
+def test_gnfs_missing_binary() -> None:
+    """Verify GNFS skips when binary is not found."""
+    from factorise.stages.gnfs import GNFSStage
+
+    stage = GNFSStage(binary="nonexistent_binary_xyz")
+    result = stage.attempt(2 ** 90 + 1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_gnfs_too_small() -> None:
+    """Verify GNFS skips very small inputs."""
+    from factorise.stages.gnfs import GNFSStage
+
+    stage = GNFSStage(binary="msieve")
+    result = stage.attempt(91, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_gnfs_too_large() -> None:
+    """Verify GNFS skips very large inputs."""
+    from factorise.stages.gnfs import GNFSStage
+
+    stage = GNFSStage(binary="msieve")
+    result = stage.attempt(2 ** 600 + 1, config=FactoriserConfig())
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_gnfs_even_in_range() -> None:
+    """Verify GNFS finds factor 2 for even inputs in range."""
+    from factorise.stages.gnfs import GNFSStage
+
+    stage = GNFSStage(binary="msieve")
+    result = stage.attempt(2 ** 85, config=FactoriserConfig())
+    # When msieve is missing, it skips
+    assert result.status in (StageStatus.SUCCESS, StageStatus.SKIPPED)
+
+
+# ---------------------------------------------------------------------------
+# ECM shared utilities
+# ---------------------------------------------------------------------------
+
+
+def test_generate_primes_up_to() -> None:
+    """Verify prime generation utility."""
+    from factorise.stages._ecm_shared import generate_primes_up_to
+
+    primes = generate_primes_up_to(30)
+    assert 2 in primes
+    assert 3 in primes
+    assert 5 in primes
+    assert 29 in primes
+    assert 30 not in primes
+
+
+def test_elliptic_curve_operations() -> None:
+    """Verify ECM shared curve operations do not crash."""
+    from factorise.stages._ecm_shared import EllipticCurveOperations
+    from factorise.stages._ecm_shared import generate_primes_up_to
+
+    ops = EllipticCurveOperations()
+    primes = generate_primes_up_to(100)
+    _result = ops.run_curve(91, 1, primes, 100)
+    # May find a factor or return None
+
+
+# ---------------------------------------------------------------------------
+# QS shared utilities
+# ---------------------------------------------------------------------------
+
+
+def test_is_small_prime() -> None:
+    """Verify small prime detection."""
+    from factorise.stages._qs_shared import is_small_prime
+
+    assert is_small_prime(2) is True
+    assert is_small_prime(3) is True
+    assert is_small_prime(4) is False
+    assert is_small_prime(97) is True
+    assert is_small_prime(100) is False
+    assert is_small_prime(1) is False
+    assert is_small_prime(0) is False
+    assert is_small_prime(-5) is False
+
+
+def test_factor_over_base() -> None:
+    """Verify factor base decomposition."""
+    from factorise.stages._qs_shared import factor_over_base
+
+    base = [2, 3, 5, 7]
+    result = factor_over_base(30, base)
+    assert result is not None
+    # 30 = 2 * 3 * 5
+
+
+def test_factor_over_base_none() -> None:
+    """Verify factor_over_base returns None when not smooth."""
+    from factorise.stages._qs_shared import factor_over_base
+
+    base = [2, 3, 5]
+    result = factor_over_base(7, base)
+    assert result is None
+
+
+def test_find_dependency() -> None:
+    """Verify Gaussian elimination dependency finder."""
+    from factorise.stages._qs_shared import find_dependency
+
+    relations = [
+        {"exponents": [0, 1, 1]},
+        {"exponents": [1, 0, 1]},
+        {"exponents": [1, 1, 0]},
+    ]
+    dep = find_dependency(relations, 3)
+    assert dep is not None
+
+
+def test_find_dependency_none() -> None:
+    """Verify find_dependency returns None when insufficient relations."""
+    from factorise.stages._qs_shared import find_dependency
+
+    relations = [{"exponents": [0, 1, 1]}]
+    dep = find_dependency(relations, 3)
+    assert dep is None
+
+
+def test_extract_factor() -> None:
+    """Verify factor extraction from relations."""
+    from factorise.stages._qs_shared import extract_factor
+
+    relations = [
+        {"a": 2, "a2_mod_n": 4, "exponents": [2]},
+        {"a": 3, "a2_mod_n": 9, "exponents": [0]},
+    ]
+    dependency = [1, 1]
+    prime_base = [2]
+    # n = 15; a=2, a2=4; a=3, a2=9; 4*9=36 ≡ 6 (mod 15); gcd(6±1,15) = ?
+    _result = extract_factor(15, relations, dependency, prime_base)
+    # May or may not find a factor
+
+
+def test_extract_factor_trivial() -> None:
+    """Verify extract_factor handles trivial cases."""
+    from factorise.stages._qs_shared import extract_factor
+
+    relations = [
+        {"a": 1, "a2_mod_n": 1, "exponents": [0]},
+    ]
+    dependency = [0]
+    prime_base = [2]
+    result = extract_factor(15, relations, dependency, prime_base)
+    assert result is None

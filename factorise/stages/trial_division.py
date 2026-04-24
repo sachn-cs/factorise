@@ -6,12 +6,13 @@ import time
 
 from loguru import logger
 
-from source.core import EXTENDED_SMALL_PRIMES
-from source.core import FactoriserConfig
-from source.core import ensure_integer_input
-from source.pipeline import FactorStage
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
+from factorise.core import EXTENDED_SMALL_PRIMES
+from factorise.core import FactoriserConfig
+from factorise.core import ensure_integer_input
+from factorise.pipeline import elapsed_ms
+from factorise.pipeline import FactorStage
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
 
 logger.disable("factorise")
 
@@ -35,12 +36,12 @@ class OptimizedTrialDivisionStage(FactorStage):
         bound: int | None = None,
         prime_table: tuple[int, ...] | None = None,
     ) -> None:
-        self._bound = bound if bound is not None else 10_000
-        self._prime_table = (
+        self.__bound = bound if bound is not None else 10_000
+        self.__prime_table = (
             prime_table if prime_table is not None else EXTENDED_SMALL_PRIMES
         )
 
-    def attempt(self, n: int, *, config: HybridConfig) -> StageResult:
+    def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
         ensure_integer_input(n)
 
@@ -49,7 +50,7 @@ class OptimizedTrialDivisionStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SKIPPED,
                 factor=None,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 reason="n < 2",
             )
 
@@ -58,7 +59,7 @@ class OptimizedTrialDivisionStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=2,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 iterations_used=1,
             )
         if n % 3 == 0:
@@ -66,7 +67,7 @@ class OptimizedTrialDivisionStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=3,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 iterations_used=1,
             )
         if n % 5 == 0:
@@ -74,12 +75,12 @@ class OptimizedTrialDivisionStage(FactorStage):
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=5,
-                elapsed_ms=self._elapsed_ms(start),
+                elapsed_ms=elapsed_ms(start),
                 iterations_used=1,
             )
 
-        for prime in self._prime_table:
-            if prime > self._bound:
+        for prime in self.__prime_table:
+            if prime > self.__bound:
                 break
             if prime == 2 or prime == 3 or prime == 5:
                 continue
@@ -94,7 +95,7 @@ class OptimizedTrialDivisionStage(FactorStage):
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=prime,
-                    elapsed_ms=self._elapsed_ms(start),
+                    elapsed_ms=elapsed_ms(start),
                     iterations_used=1,
                 )
 
@@ -107,9 +108,6 @@ class OptimizedTrialDivisionStage(FactorStage):
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=self._elapsed_ms(start),
+            elapsed_ms=elapsed_ms(start),
             reason="no small factor found in trial division",
         )
-
-    def _elapsed_ms(self, start: float) -> float:
-        return (time.monotonic() - start) * 1000

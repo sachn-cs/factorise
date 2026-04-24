@@ -6,13 +6,13 @@ import time
 
 from loguru import logger
 
-from source.core import FactorisationError
-from source.core import FactoriserConfig
-from source.core import ensure_integer_input
-from source.core import find_nontrivial_factor_pollard_brent
-from source.pipeline import FactorStage
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
+from factorise.core import FactorisationError
+from factorise.core import FactoriserConfig
+from factorise.core import ensure_integer_input
+from factorise.core import find_nontrivial_factor_pollard_brent
+from factorise.pipeline import FactorStage
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
 
 logger.disable("factorise")
 
@@ -20,7 +20,7 @@ logger.disable("factorise")
 class PollardRhoStage(FactorStage):
     """Pollard's Rho (Brent variant) factorisation stage.
 
-    This stage wraps the existing pollard_brent implementation from source.core
+    This stage wraps the existing pollard_brent implementation from factorise.core
     and exposes it via the FactorStage interface. It is the primary general-purpose
     factorisation method in the pipeline, effective for small-to-medium composites.
 
@@ -37,20 +37,20 @@ class PollardRhoStage(FactorStage):
         batch_size: int = 128,
         seed: int | None = None,
     ) -> None:
-        self._max_retries = max_retries
-        self._max_iterations = max_iterations
-        self._batch_size = batch_size
-        self._seed = seed
+        self.__max_retries = max_retries
+        self.__max_iterations = max_iterations
+        self.__batch_size = batch_size
+        self.__seed = seed
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
         ensure_integer_input(n)
 
         cfg = FactoriserConfig(
-            batch_size=self._batch_size,
-            max_iterations=self._max_iterations,
-            max_retries=self._max_retries,
-            seed=self._seed,
+            batch_size=self.__batch_size,
+            max_iterations=self.__max_iterations,
+            max_retries=self.__max_retries,
+            seed=self.__seed,
         )
 
         try:
@@ -66,7 +66,7 @@ class PollardRhoStage(FactorStage):
                 status=StageStatus.SUCCESS,
                 factor=factor,
                 elapsed_ms=(time.monotonic() - start) * 1000,
-                iterations_used=self._max_retries,
+                iterations_used=self.__max_retries,
             )
         except FactorisationError as exc:
             logger.debug(

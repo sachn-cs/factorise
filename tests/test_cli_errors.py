@@ -8,10 +8,10 @@ import pytest
 from loguru import logger
 from typer.testing import CliRunner
 
-from source.cli import app
-from source.cli import configure_logging
-from source.cli import handle_signal
-from source.core import FactorisationError
+from factorise.cli import app
+from factorise.cli import configure_logging
+from factorise.cli import handle_signal
+from factorise.core import FactorisationError
 
 CLI_RUNNER: CliRunner = CliRunner()
 CLI_INPUT: str = "123"
@@ -19,10 +19,13 @@ SIMULATION_VAL: str = "Simulation"
 
 
 def test_cli_handle_signal() -> None:
-    """Verify that handle_signal calls sys.exit(0) on SIGINT."""
+    """Verify that handle_signal exits with the correct Unix signal code."""
     with patch("sys.exit") as mock_exit:
         handle_signal(signal.SIGINT, None)
-        mock_exit.assert_called_with(0)
+        mock_exit.assert_called_with(130)
+    with patch("sys.exit") as mock_exit:
+        handle_signal(signal.SIGTERM, None)
+        mock_exit.assert_called_with(143)
 
 
 def test_cli_logging_configuration_verification() -> None:
@@ -33,7 +36,7 @@ def test_cli_logging_configuration_verification() -> None:
 
 def test_cli_error_handling_type_error() -> None:
     """Verify that TypeError in the core library is caught as an Input Error."""
-    with patch("source.cli.factorise", side_effect=TypeError(SIMULATION_VAL)):
+    with patch("factorise.cli.factorise", side_effect=TypeError(SIMULATION_VAL)):
         result = CLI_RUNNER.invoke(app, [CLI_INPUT])
         assert result.exit_code == 1
         assert "Input Error" in result.output
@@ -42,7 +45,7 @@ def test_cli_error_handling_type_error() -> None:
 def test_cli_error_handling_runtime_error() -> None:
     """Verify that FactorisationError is caught as a Runtime Error."""
     with patch(
-        "source.cli.factorise", side_effect=FactorisationError(SIMULATION_VAL)
+        "factorise.cli.factorise", side_effect=FactorisationError(SIMULATION_VAL)
     ):
         result = CLI_RUNNER.invoke(app, [CLI_INPUT])
         assert result.exit_code == 1
@@ -111,7 +114,7 @@ def test_json_logging_exception_payload(
 
 def test_cli_error_handling_value_error() -> None:
     """Verify that ValueError is caught as a Value Error in the CLI."""
-    with patch("source.cli.factorise", side_effect=ValueError(SIMULATION_VAL)):
+    with patch("factorise.cli.factorise", side_effect=ValueError(SIMULATION_VAL)):
         result = CLI_RUNNER.invoke(app, [CLI_INPUT])
         assert result.exit_code == 1
         assert "Value Error" in result.output

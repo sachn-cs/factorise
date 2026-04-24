@@ -12,20 +12,20 @@ install:
 
 # Run Ruff linter (code quality)
 lint:
-    ruff check source/ tests/ benchmarks/
+    ruff check factorise/ tests/ benchmarks/
 
 # Apply Ruff auto-fixes then format
 format:
-    ruff check --fix source/ tests/ benchmarks/
-    ruff format source/ tests/ benchmarks/
+    ruff check --fix factorise/ tests/ benchmarks/
+    ruff format factorise/ tests/ benchmarks/
 
 # Run mypy static type checker
 type-check:
-    mypy source/ tests/ benchmarks/
+    mypy factorise/ tests/ benchmarks/
 
 # Run dependency vulnerability scanning
 security:
-    pip-audit --strict
+    pip-audit --strict .
 
 # Run the pytest test suite
 test:
@@ -33,11 +33,11 @@ test:
 
 # Run the pytest test suite with coverage enforcement
 test-ci:
-    pytest --cov=source --cov-fail-under=90 tests/ -v
+    pytest --cov=factorise --cov-fail-under=90 tests/ -v
 
 # Clean build artifacts and caches
 clean:
-    rm -rf build/ dist/ *.egg-info/ source/*.egg-info/
+    rm -rf build/ dist/ *.egg-info/ factorise/*.egg-info/
     rm -rf .pytest_cache/ .mypy_cache/ .ruff_cache/
     find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
     find . -type f -name "*.pyc" -delete 2>/dev/null || true
