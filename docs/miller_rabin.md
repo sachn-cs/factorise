@@ -56,7 +56,7 @@ bases).
 ## Implementation Notes
 
 ```python
-from source.core import is_prime
+from factorise.core import is_prime
 
 # Deterministic for all n < 2^64
 is_prime(2**61 - 1)   # True  (Mersenne prime M61)

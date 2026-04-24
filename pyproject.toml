@@ -7,7 +7,7 @@ name = "factorise"
 dynamic = ["version"]
 description = "Fast, deterministic prime factorisation using Miller-Rabin and Pollard's Rho (Brent)."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
     { name = "sachin", email = "chakravarthy1393966@gmail.com" }
@@ -40,7 +40,7 @@ Repository = "https://github.com/sachn-cs/factorise"
 "Bug Tracker" = "https://github.com/sachn-cs/factorise/issues"
 
 [project.scripts]
-factorise = "source.cli:app"
+factorise = "factorise.cli:app"
 
 [project.optional-dependencies]
 dev = [
@@ -58,10 +58,10 @@ dev = [
 ]
 
 [tool.hatch.version]
-path = "source/__init__.py"
+path = "factorise/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["source"]
+packages = ["factorise"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -73,7 +73,7 @@ show_missing = true
 precision = 2
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.10"
 strict = true
 enable_error_code = ["no-untyped-def"]
 
@@ -91,7 +91,7 @@ ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 80
-target-version = "py314"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [

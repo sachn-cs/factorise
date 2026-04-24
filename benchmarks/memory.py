@@ -23,9 +23,9 @@ from benchmarks.inputs import IS_PRIME_LARGE
 from benchmarks.inputs import IS_PRIME_MEDIUM
 from benchmarks.inputs import IS_PRIME_SMALL
 from benchmarks.inputs import SCALABILITY_INPUTS
-from source.core import FactoriserConfig
-from source.core import factorise
-from source.core import is_prime
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
+from factorise.core import is_prime
 
 DEFAULT_CONFIG: FactoriserConfig = FactoriserConfig()
 

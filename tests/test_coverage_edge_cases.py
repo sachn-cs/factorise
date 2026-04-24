@@ -4,14 +4,14 @@ from unittest.mock import patch
 
 import pytest
 
-from source.cli import app
-from source.core import BrentPollardCycleResult as AttemptResult
-from source.core import ensure_integer_input
-from source.core import execute_brent_pollard_cycle as pollard_brent_attempt
-from source.core import FactorisationError
-from source.core import FactoriserConfig
-from source.core import find_nontrivial_factor_pollard_brent as pollard_brent
-from source.core import PollardBrentOutcome as AttemptStatus
+from factorise.cli import app
+from factorise.core import BrentPollardCycleResult as AttemptResult
+from factorise.core import FactorisationError
+from factorise.core import FactoriserConfig
+from factorise.core import PollardBrentOutcome as AttemptStatus
+from factorise.core import ensure_integer_input
+from factorise.core import execute_brent_pollard_cycle as pollard_brent_attempt
+from factorise.core import find_nontrivial_factor_pollard_brent as pollard_brent
 from tests.conftest import DEFAULT_CONFIG
 
 # 233 * 239 = 55687 - both primes > 229 (end of TRIAL_DIVISION_PRIMES)
@@ -74,8 +74,8 @@ def test_pollard_brent_success_without_factor_bug() -> None:
     fake_success = AttemptResult(
         AttemptStatus.SUCCESS, iterations_used=1, factor=None
     )
-    with patch("source.core.execute_brent_pollard_cycle", return_value=fake_success):
-        with patch("source.core.is_prime", return_value=False):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fake_success):
+        with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
             assert "returned SUCCESS without a factor" in str(excinfo.value)
@@ -86,8 +86,8 @@ def test_pollard_brent_global_iteration_cap_hit() -> None:
     cap_hit = AttemptResult(
         AttemptStatus.ITERATION_CAP_HIT, iterations_used=10
     )
-    with patch("source.core.execute_brent_pollard_cycle", return_value=cap_hit):
-        with patch("source.core.is_prime", return_value=False):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=cap_hit):
+        with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
             assert f"failed for n={LARGE_COMPOSITE_NO_SMALL_FACTORS}" in str(
@@ -106,7 +106,7 @@ def test_cli_main_invalid_input_value() -> None:
 
     runner = CliRunner()
     with patch(
-        "source.cli.FactoriserConfig.from_env",
+        "factorise.cli.FactoriserConfig.from_env",
         side_effect=ValueError("bad config"),
     ):
         result = runner.invoke(app, ["8051"])
@@ -119,7 +119,7 @@ def test_cli_main_type_error_catch() -> None:
     from typer.testing import CliRunner
 
     runner = CliRunner()
-    with patch("source.cli.factorise", side_effect=TypeError("not an int")):
+    with patch("factorise.cli.factorise", side_effect=TypeError("not an int")):
         result = runner.invoke(app, ["8051"])
         assert result.exit_code == 1
         assert "Input Error" in result.output
@@ -130,8 +130,8 @@ def test_pollard_brent_all_retries_fail() -> None:
     fail_res = AttemptResult(
         AttemptStatus.ALGORITHM_FAILURE, iterations_used=1
     )
-    with patch("source.core.execute_brent_pollard_cycle", return_value=fail_res):
-        with patch("source.core.is_prime", return_value=False):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fail_res):
+        with patch("factorise.core.is_prime", return_value=False):
             cfg = FactoriserConfig(max_retries=1)
             with pytest.raises(FactorisationError):
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, cfg)

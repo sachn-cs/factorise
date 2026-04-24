@@ -7,9 +7,9 @@ from typing import cast
 
 import pytest
 
-from source.core import FactoriserConfig
-from source.core import factorise
-from source.core import is_prime
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
+from factorise.core import is_prime
 from tests.conftest import DEFAULT_CONFIG
 
 SMALL_PRIMES = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]

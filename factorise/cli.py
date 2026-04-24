@@ -5,6 +5,8 @@ FactoriserConfig construction from the environment, graceful signal handling
 for shutdown, and formatting the FactorisationResult into Rich tables.
 """
 
+__all__ = ["app"]
+
 import json
 import os
 import signal
@@ -20,10 +22,10 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from source.core import FactorisationError
-from source.core import FactorisationResult
-from source.core import FactoriserConfig
-from source.core import factorise
+from factorise.core import FactorisationError
+from factorise.core import FactorisationResult
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
 
 # Configuration Constants
 LOGGER_NAME: Final[str] = "factorise"
@@ -55,21 +57,24 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def handle_signal(signum: int, _frame: FrameType | None) -> None:
+def handle_signal(signum: int, frame: FrameType | None) -> None:
     """Log the received system signal and exit the sequence cleanly.
 
     Args:
         signum: The integer identifier of the caught signal.
-        _frame: The current stack frame (unused).
+        frame: The current stack frame (unused).
     """
     logger.info(
         "Received signal {sig}, shutting down.", sig=signal.Signals(signum).name
     )
-    sys.exit(SUCCESS_EXIT_CODE)
+    code = 128 + signum
+    sys.exit(code)
 
 
-signal.signal(signal.SIGINT, handle_signal)
-signal.signal(signal.SIGTERM, handle_signal)
+def register_signal_handlers() -> None:
+    """Register SIGINT and SIGTERM handlers for graceful CLI shutdown."""
+    signal.signal(signal.SIGINT, handle_signal)
+    signal.signal(signal.SIGTERM, handle_signal)
 
 # ---------------------------------------------------------------------------
 # Display helpers
@@ -117,7 +122,7 @@ def display_factors(result: FactorisationResult, verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _normalize_log_level(log_level: str) -> str:
+def normalize_log_level(log_level: str) -> str:
     """Normalize and validate logging level."""
     normalized_level = log_level.upper()
     if normalized_level not in VALID_LOG_LEVELS:
@@ -126,7 +131,7 @@ def _normalize_log_level(log_level: str) -> str:
     return normalized_level
 
 
-def _normalize_log_format(log_format: str) -> str:
+def normalize_log_format(log_format: str) -> str:
     """Normalize and validate logging format."""
     normalized_format = log_format.lower()
     if normalized_format not in VALID_LOG_FORMATS:
@@ -135,7 +140,7 @@ def _normalize_log_format(log_format: str) -> str:
     return normalized_format
 
 
-def _resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
+def resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
     """Resolve trace context fields from bound logger extras or environment."""
     context: dict[str, str] = {}
     extras = record.get("extra")
@@ -151,7 +156,7 @@ def _resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
     return context
 
 
-def _json_log_sink(message: Any) -> None:
+def json_log_sink(message: Any) -> None:
     """Emit one structured JSON log object per line to stderr."""
     record = message.record
     payload: dict[str, object] = {
@@ -166,7 +171,7 @@ def _json_log_sink(message: Any) -> None:
         "thread_id": record["thread"].id,
     }
 
-    payload.update(_resolve_trace_context(record))
+    payload.update(resolve_trace_context(record))
 
     exception = record.get("exception")
     if exception is not None:
@@ -199,13 +204,13 @@ def configure_logging(
     Raises:
         ValueError: If log_level or log_format is unsupported.
     """
-    normalized_level = _normalize_log_level(log_level)
-    normalized_format = _normalize_log_format(log_format)
+    normalized_level = normalize_log_level(log_level)
+    normalized_format = normalize_log_format(log_format)
     logger.enable(LOGGER_NAME)
     logger.remove()
     if normalized_format == "json":
         logger.add(
-            _json_log_sink,
+            json_log_sink,
             level=normalized_level,
             backtrace=False,
             diagnose=False,
@@ -252,6 +257,8 @@ def main(
     except ValueError as exc:
         console.print(f"[bold red]Configuration Error:[/bold red] {exc}")
         raise typer.Exit(code=ERROR_EXIT_CODE) from exc
+
+    register_signal_handlers()
 
     logger.info("CLI invoked number={number}", number=number)
 

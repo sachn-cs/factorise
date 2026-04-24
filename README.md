@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 
 Deterministic prime factorisation for Python using Miller-Rabin primality testing and a multi-stage factorisation pipeline supporting Trial Division, Pollard's p−1, Pollard's Rho (Brent), ECM, Quadratic Sieve, and a GNFS adapter for very large inputs.
 
@@ -44,14 +44,14 @@ Key capabilities:
 # Install
 pip install factorise
 
-# Using the library (requires Python 3.14+)
-python -c "from source import factorise; print(factorise(123456789).expression())"
+# Using the library (requires Python 3.10+)
+python -c "from factorise import factorise; print(factorise(123456789).expression())"
 
 # Using the CLI
 factorise 123456789 --verbose
 
 # Using the pipeline mode (recommended for large composites)
-from source import FactoriserConfig
+from factorise import FactoriserConfig
 config = FactoriserConfig(use_pipeline=True)
 result = factorise(123456789, config)
 ```
@@ -59,15 +59,22 @@ result = factorise(123456789, config)
 ## 3. Repository Structure
 
 ```text
-source/
+factorise/
   __init__.py     Public exports and version.
   core.py         Algorithms, config, validation, domain exceptions.
   pipeline.py     Multi-stage pipeline, FactorStage interface, PipelineConfig.
   stages/
-    pollard_rho.py   Pollard-Rho (Brent) stage.
-    ecm.py           Elliptic Curve Method stage.
+    __init__.py         Package initialiser.
+    trial_division.py   Trial Division stage (wheel-optimised).
+    improved_pm1.py     Pollard p−1 stage (progressive bounds).
+    pollard_rho.py      Pollard-Rho (Brent) stage.
+    ecm.py              Elliptic Curve Method stage.
+    ecm_two_pass.py     Two-pass ECM stage.
+    _ecm_shared.py      Shared elliptic-curve arithmetic.
     quadratic_sieve.py  Quadratic Sieve stage.
-    gnfs.py          GNFS external tool adapter stage.
+    siqs.py             Self-Initializing Quadratic Sieve stage.
+    _qs_shared.py       Shared QS utilities (factor base, Gaussian elimination).
+    gnfs.py             GNFS external tool adapter stage.
   cli.py          CLI command, display, logging, signal handling.
   py.typed        PEP 561 marker.
 
@@ -141,12 +148,9 @@ isolation. Silently skipped if the binary is not on PATH. For very large inputs
 `PipelineConfig` controls the pipeline:
 
 ```python
-from source.pipeline import PipelineConfig, FactorisationPipeline
+from factorise.pipeline import PipelineConfig, FactorisationPipeline
 
 config = PipelineConfig(
-    bound_small=10**12,      # Skip p-1/ECM below this
-    bound_medium=10**20,     # Skip ECM above this
-    bound_large=10**40,      # Skip QS above this
     trial_division_bound=10_000,
     pm1_bound=10**6,
     ecm_curves=20,
@@ -170,8 +174,6 @@ pipeline = FactorisationPipeline(config)
 
 Environment variables (`FACTORISE_*`):
 
-- `FACTORISE_BOUND_SMALL`, `FACTORISE_BOUND_MEDIUM`, `FACTORISE_BOUND_LARGE`,
-  `FACTORISE_BOUND_XLARGE` — size thresholds per stage.
 - `FACTORISE_TRIAL_DIVISION_BOUND` — trial division prime ceiling.
 - `FACTORISE_PM1_BOUND` — Pollard p−1 smoothness bound.
 - `FACTORISE_ECM_CURVES` — number of ECM curves to try.
@@ -187,10 +189,13 @@ Environment variables (`FACTORISE_*`):
 ### Library
 
 ```python
-from source import factorise, is_prime, FactorisationResult
-from source import FactoriserConfig
-from source import FactorisationPipeline, PipelineConfig
-from source import StageResult, StageStatus, FactorStage
+from factorise import factorise, is_prime, FactorisationResult
+from factorise import FactoriserConfig
+from factorise import FactorisationPipeline, PipelineConfig
+from factorise import StageResult, StageStatus, FactorStage
+from factorise import HybridConfig, HybridFactorisationEngine, hybrid_factorise
+from factorise import PerfectPowerResult, find_perfect_power, has_carmichael_property
+from factorise import ensure_integer_input
 
 # Basic usage
 result = factorise(123456789)
@@ -210,6 +215,15 @@ print(stage_result.factor)   # 3
 
 # Primality testing
 is_prime(97)  # True
+
+# Perfect-power detection
+pp = find_perfect_power(125)
+print(pp.base, pp.exponent)  # 5 3
+
+# Hybrid engine (adaptive algorithm selection)
+from factorise.config import HybridConfig
+engine = HybridFactorisationEngine(HybridConfig())
+result = hybrid_factorise(123456789)
 ```
 
 ### CLI
@@ -221,13 +235,17 @@ factorise 123456789 --log-level INFO
 factorise 123456789 --log-format json
 ```
 
+**Note:** The CLI does not accept negative integers directly because the leading
+`-` is interpreted as an option flag. Use the library API (`factorise(-n)`) for
+negative inputs.
+
 ## 7. Testing
 
 Primary test commands:
 
 ```bash
 pytest tests/ -v
-pytest --cov=source --cov-fail-under=90 tests/
+pytest --cov=factorise --cov-fail-under=90 tests/
 pytest -v benchmarks/stress.py::test_stress_correctness
 pytest -q tests/test_core_primality.py
 pytest -q tests/test_cli_errors.py
@@ -253,9 +271,9 @@ just type-check
 Or directly:
 
 ```bash
-ruff check source/ tests/ benchmarks/
-ruff format source/ tests/ benchmarks/
-mypy source/ tests/ benchmarks/
+ruff check factorise/ tests/ benchmarks/
+ruff format factorise/ tests/ benchmarks/
+mypy factorise/ tests/ benchmarks/
 ```
 
 Pre-commit:
@@ -290,7 +308,8 @@ Scalability and safety:
 ## 10. Logging / Troubleshooting
 
 Logging model:
-- Library logger is disabled by default for quiet embedding.
+- Library logging uses `loguru` with a default stderr handler; callers can
+  configure their own sinks to control verbosity.
 - CLI enables logging and validates allowed levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
 - Human-readable logging remains the default.
 - JSON mode emits one JSON object per line with operational fields.

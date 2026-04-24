@@ -15,9 +15,20 @@ import os
 import random
 from collections import Counter
 from collections.abc import Generator
-from typing import Self
 
 from loguru import logger
+
+__all__ = [
+    "ensure_integer_input",
+    "FactorisationError",
+    "FactorisationResult",
+    "PerfectPowerResult",
+    "FactoriserConfig",
+    "is_prime",
+    "find_perfect_power",
+    "has_carmichael_property",
+    "factorise",
+]
 
 # Deterministic witnesses for n < 2^64 (12 bases).
 DETERMINISTIC_WITNESSES: tuple[int, ...] = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37)
@@ -277,7 +288,7 @@ class FactoriserConfig:
             )
 
     @classmethod
-    def from_env(cls) -> Self:
+    def from_env(cls) -> "FactoriserConfig":
         """Build a config from FACTORISE_* environment variables.
 
         Falls back to the dataclass defaults when variables are absent.
@@ -446,7 +457,13 @@ class PollardBrentOutcome(enum.Enum):
 
 
 class BrentPollardCycleResult:
-    """Result of a single Pollard-Brent attempt."""
+    """Result of a single Pollard-Brent cycle attempt.
+
+    Attributes:
+        outcome: The termination reason for the cycle.
+        iterations_used: Number of iterations consumed before termination.
+        factor: A non-trivial factor if one was found, otherwise None.
+    """
 
     __slots__ = ("outcome", "iterations_used", "factor")
 
@@ -456,6 +473,13 @@ class BrentPollardCycleResult:
         iterations_used: int,
         factor: int | None = None,
     ) -> None:
+        """Initialise a cycle result.
+
+        Args:
+            outcome: The termination reason for the cycle.
+            iterations_used: Number of iterations consumed before termination.
+            factor: A non-trivial factor if one was found.
+        """
         self.outcome = outcome
         self.iterations_used = iterations_used
         self.factor = factor
@@ -648,10 +672,17 @@ def find_nontrivial_factor_pollard_brent(n: int, config: FactoriserConfig) -> in
 
 def yield_prime_factors_recursive(
     n: int, config: FactoriserConfig
-) -> Generator[int]:
+) -> Generator[int, None, None]:
     """Iteratively yield prime factors of n using an explicit stack.
 
     Uses O(log n) stack space (worst case) but avoids call-stack overhead.
+
+    Args:
+        n: The integer to factorise.
+        config: Factorisation configuration (retries, iterations, seed).
+
+    Yields:
+        Prime factors of n, possibly repeated.
     """
     stack: list[int] = [n]
     while stack:
@@ -670,16 +701,22 @@ def yield_prime_factors_recursive(
 
 def yield_prime_factors_via_pipeline(
     n: int, config: FactoriserConfig
-) -> Generator[int]:
+) -> Generator[int, None, None]:
     """Iteratively yield prime factors of n using the multi-stage pipeline.
 
     This function is used when config.use_pipeline is True. It uses the
     FactorisationPipeline to find non-trivial factors, feeding each composite
     part back into the pipeline until all remaining values are prime.
+
+    Args:
+        n: The integer to factorise.
+        config: Factorisation configuration (retries, iterations, seed).
+
+    Yields:
+        Prime factors of n, possibly repeated.
     """
-    from source.pipeline import FactorisationPipeline
-    from source.pipeline import PipelineConfig
-    from source.pipeline import StageStatus
+    from factorise.pipeline import FactorisationPipeline
+    from factorise.pipeline import PipelineConfig
 
     pipeline_config = PipelineConfig(
         max_iterations=config.max_iterations,
@@ -756,10 +793,6 @@ def collect_prime_factors(n: int, config: FactoriserConfig) -> list[int]:
 
 
 # ---------------------------------------------------------------------------
-# Backward-compatible aliases (deprecated, will be removed in future release)
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
 # Public API — the single entry point callers interact with.
 # ---------------------------------------------------------------------------
 
@@ -813,8 +846,11 @@ def factorise(
         sign=sign,
         factors=factors,
         powers=powers,
-        is_prime=(len(factors) == 1 and sum(powers.values()) == 1)
-        and abs_n > 1,
+        is_prime=(
+            len(factors) == 1
+            and sum(powers.values()) == 1
+            and n > 1
+        ),
     )
 
     logger.info(

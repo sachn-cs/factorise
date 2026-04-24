@@ -2,9 +2,9 @@
 
 import pytest
 
-from source.core import FactorisationResult
-from source.core import FactoriserConfig
-from source.core import ensure_integer_input
+from factorise.core import FactorisationResult
+from factorise.core import FactoriserConfig
+from factorise.core import ensure_integer_input
 from tests.conftest import DEFAULT_CONFIG
 
 
@@ -34,7 +34,7 @@ def test_config_custom_values() -> None:
 def test_config_invalid_raises(kwargs: dict[str, int]) -> None:
     """Verify that FactoriserConfig validates its inputs during initialization."""
     with pytest.raises(ValueError):
-        FactoriserConfig(**kwargs)
+        FactoriserConfig(**kwargs)  # type: ignore[arg-type]
 
 
 def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -52,7 +52,7 @@ def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_result_is_dataclass() -> None:
     """Verify that the result model is a Frozen Dataclass."""
-    from source.core import factorise
+    from factorise.core import factorise
 
     res = factorise(12, DEFAULT_CONFIG)
     assert isinstance(res, FactorisationResult)
@@ -60,7 +60,7 @@ def test_result_is_dataclass() -> None:
 
 def test_result_expression_positive() -> None:
     """Verify the string expression for positive composite results."""
-    from source.core import factorise
+    from factorise.core import factorise
 
     res = factorise(12, DEFAULT_CONFIG)
     expr = res.expression()
@@ -71,7 +71,7 @@ def test_result_expression_positive() -> None:
 
 def test_result_expression_negative() -> None:
     """Verify the string expression for negative composite results."""
-    from source.core import factorise
+    from factorise.core import factorise
 
     res = factorise(-12, DEFAULT_CONFIG)
     assert res.expression().startswith("-1 *")
@@ -79,7 +79,7 @@ def test_result_expression_negative() -> None:
 
 def test_result_expression_prime() -> None:
     """Verify the string expression for prime results."""
-    from source.core import factorise
+    from factorise.core import factorise
 
     res = factorise(7, DEFAULT_CONFIG)
     assert res.expression() == "7"

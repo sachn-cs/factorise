@@ -3,7 +3,7 @@
 from click.testing import Result as CliResult
 from typer.testing import CliRunner
 
-from source.cli import app
+from factorise.cli import app
 
 runner = CliRunner()
 

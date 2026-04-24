@@ -1,4 +1,4 @@
-from source.core import is_prime
+from factorise.core import is_prime
 
 # Known primes
 P31 = 2**31 - 1

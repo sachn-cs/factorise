@@ -2,8 +2,8 @@
 
 import pytest
 
-from source.core import factorise
-from source.core import is_prime
+from factorise.core import factorise
+from factorise.core import is_prime
 
 hypothesis = pytest.importorskip("hypothesis")
 st = pytest.importorskip("hypothesis.strategies")
@@ -42,5 +42,6 @@ def test_factorisation_invariants(n: int) -> None:
     for factor in res.factors:
         assert is_prime(factor), f"Factor {factor} is not prime"
 
-    # Invariant 3: is_prime(abs_n) and res.is_prime agree.
-    assert is_prime(abs_n) == res.is_prime, f"is_prime mismatch for {abs_n}"
+    # Invariant 3: res.is_prime is True only for positive primes.
+    expected_is_prime = n > 1 and is_prime(n)
+    assert res.is_prime == expected_is_prime, f"is_prime mismatch for {n}"

@@ -7,8 +7,8 @@ Pollard-Brent completion within CI time limits.
 
 import pytest
 
-from source.core import FactoriserConfig
-from source.core import factorise
+from factorise.core import FactoriserConfig
+from factorise.core import factorise
 
 # High-precision prime constants verified for this suite
 P31 = 2147483647  # 2^31 - 1

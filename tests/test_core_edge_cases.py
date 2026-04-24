@@ -5,12 +5,12 @@ from unittest.mock import patch
 
 import pytest
 
-from source.core import BrentPollardCycleResult as AttemptResult
-from source.core import ensure_integer_input
-from source.core import execute_brent_pollard_cycle as pollard_brent_attempt
-from source.core import FactoriserConfig
-from source.core import find_nontrivial_factor_pollard_brent as pollard_brent
-from source.core import PollardBrentOutcome as AttemptStatus
+from factorise.core import BrentPollardCycleResult as AttemptResult
+from factorise.core import FactoriserConfig
+from factorise.core import PollardBrentOutcome as AttemptStatus
+from factorise.core import ensure_integer_input
+from factorise.core import execute_brent_pollard_cycle as pollard_brent_attempt
+from factorise.core import find_nontrivial_factor_pollard_brent as pollard_brent
 
 PRIMES_IN_LIST: int = 73
 LARGE_COMPOSITE: int = (10**9 + 7) * (10**9 + 9)
@@ -90,7 +90,7 @@ def test_pollard_brent_exhaustion() -> None:
         iterations_used=1,
         factor=None,
     )
-    with patch("source.core.execute_brent_pollard_cycle", return_value=failed_attempt):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=failed_attempt):
         with pytest.raises(Exception) as excinfo:
             pollard_brent(n_large, config)
         assert "failed" in str(excinfo.value)

@@ -20,13 +20,13 @@ import time
 
 from loguru import logger
 
-from source.core import FactoriserConfig
-from source.core import ensure_integer_input
-from source.pipeline import FactorStage
-from source.pipeline import StageResult
-from source.pipeline import StageStatus
-from source.stages._ecm_shared import EllipticCurveOperations
-from source.stages._ecm_shared import generate_primes_up_to
+from factorise.core import FactoriserConfig
+from factorise.core import ensure_integer_input
+from factorise.pipeline import FactorStage
+from factorise.pipeline import StageResult
+from factorise.pipeline import StageStatus
+from factorise.stages._ecm_shared import EllipticCurveOperations
+from factorise.stages._ecm_shared import generate_primes_up_to
 
 logger.disable("factorise")
 
@@ -50,8 +50,13 @@ class ECMStage(EllipticCurveOperations, FactorStage):
         curves: int | None = None,
         bound: int | None = None,
     ) -> None:
-        self._curves = curves if curves is not None else 20
-        self._bound = bound if bound is not None else 10_000
+        self.__curves = curves if curves is not None else 20
+        self.__bound = bound if bound is not None else 10_000
+
+    @property
+    def curves(self) -> int:
+        """Return the number of curves configured for this stage."""
+        return self.__curves
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()
@@ -78,10 +83,10 @@ class ECMStage(EllipticCurveOperations, FactorStage):
                     iterations_used=1,
                 )
 
-        primes = generate_primes_up_to(min(self._bound, 1000))
+        primes = generate_primes_up_to(min(self.__bound, 1000))
 
-        for curve_num in range(self._curves):
-            factor = self.run_curve(n, curve_num, primes, self._bound)
+        for curve_num in range(self.__curves):
+            factor = self.run_curve(n, curve_num, primes, self.__bound)
             if factor is not None and factor > 1:
                 logger.debug(
                     "stage={stage} n={n} factor={factor} curves={curves}",
@@ -103,5 +108,5 @@ class ECMStage(EllipticCurveOperations, FactorStage):
             status=StageStatus.FAILURE,
             factor=None,
             elapsed_ms=(time.monotonic() - start) * 1000,
-            reason=f"no factor found after {self._curves} curves",
+            reason=f"no factor found after {self.__curves} curves",
         )

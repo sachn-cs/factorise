@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 def is_small_prime(candidate: int) -> bool:
     """Test whether a small integer is prime."""
@@ -57,7 +59,7 @@ def factor_over_base(
 
 
 def find_dependency(
-    relations: list[dict],
+    relations: list[dict[str, Any]],
     num_primes: int,
 ) -> list[int] | None:
     """Find a linear dependency among relations using Gaussian elimination.
@@ -117,7 +119,7 @@ def find_dependency(
 
 def extract_factor(
     n: int,
-    relations: list[dict],
+    relations: list[dict[str, Any]],
     dependency: list[int],
     prime_base: list[int],
 ) -> int | None:
