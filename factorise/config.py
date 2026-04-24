@@ -12,17 +12,17 @@ __all__ = ["HybridConfig", "HybridFactorisationState"]
 # ---------------------------------------------------------------------------
 
 # Bit-length boundaries for algorithm selection.
-SMALL_INTEGER_BIT_BOUND: int = 40       # ~12 digits; Rho preferred over ECM
-MEDIUM_INTEGER_BIT_BOUND: int = 66      # ~20 digits; PM1 viable
-LARGE_INTEGER_BIT_BOUND: int = 133      # ~40 digits; ECM competitive
-XLARGE_INTEGER_BIT_BOUND: int = 233     # ~70 digits; SIQS territory
-SIQS_INTEGER_BIT_BOUND: int = 366      # ~110 digits; SIQS practical limit in pure Python
+SMALL_INTEGER_BIT_BOUND: int = 40  # ~12 digits; Rho preferred over ECM
+MEDIUM_INTEGER_BIT_BOUND: int = 66  # ~20 digits; PM1 viable
+LARGE_INTEGER_BIT_BOUND: int = 133  # ~40 digits; ECM competitive
+XLARGE_INTEGER_BIT_BOUND: int = 233  # ~70 digits; SIQS territory
+SIQS_INTEGER_BIT_BOUND: int = 366  # ~110 digits; SIQS practical limit in pure Python
 
 GNFS_MINIMUM_BIT_LENGTH: int = 80
 GNFS_MAXIMUM_BIT_LENGTH: int = 500
 
 # Trial division.
-TRIAL_DIVISION_PRIME_COUNT: int = 1000   # primes up to ~7919
+TRIAL_DIVISION_PRIME_COUNT: int = 1000  # primes up to ~7919
 
 # Pollard p-1.
 PM1_SMOOTHNESS_BOUNDS: tuple[int, ...] = (10**6, 10**7, 10**8, 10**9)
@@ -45,7 +45,6 @@ SIQS_MAX_BIT_LENGTH: int = 110
 # GNFS.
 GNFS_TIMEOUT_SECONDS: int = 600
 GNFS_EXTERNAL_TOOL_NAME: str = "msieve"
-
 
 # ---------------------------------------------------------------------------
 # Config
@@ -108,30 +107,28 @@ class HybridConfig:
                 f"trial_division_bound must be 1-100000, got {self.trial_division_bound}"
             )
         if not 1 <= self.trial_division_prime_count <= 10_000:
-            raise ValueError(
-                f"trial_division_prime_count must be 1-10000, got "
-                f"{self.trial_division_prime_count}"
-            )
+            raise ValueError(f"trial_division_prime_count must be 1-10000, got "
+                             f"{self.trial_division_prime_count}")
         if not self.pm1_smoothness_bounds:
             raise ValueError("pm1_smoothness_bounds must not be empty")
         for b in self.pm1_smoothness_bounds:
             if b < 1:
-                raise ValueError(f"each pm1_smoothness_bound must be >= 1, got {b}")
+                raise ValueError(
+                    f"each pm1_smoothness_bound must be >= 1, got {b}")
         for base in self.pm1_trial_bases:
             if base < 2:
-                raise ValueError(f"each pm1_trial_base must be >= 2, got {base}")
+                raise ValueError(
+                    f"each pm1_trial_base must be >= 2, got {base}")
         if not 1 <= self.rho_max_retries <= 1000:
             raise ValueError(
-                f"rho_max_retries must be 1-1000, got {self.rho_max_retries}"
-            )
+                f"rho_max_retries must be 1-1000, got {self.rho_max_retries}")
         if not 1 <= self.rho_max_iterations <= 1_000_000_000:
             raise ValueError(
                 f"rho_max_iterations must be 1-1e9, got {self.rho_max_iterations}"
             )
         if not 1 <= self.rho_batch_size <= 10_000:
             raise ValueError(
-                f"rho_batch_size must be 1-10000, got {self.rho_batch_size}"
-            )
+                f"rho_batch_size must be 1-10000, got {self.rho_batch_size}")
         if not 1 <= self.ecm_first_pass_curves <= 1000:
             raise ValueError(
                 f"ecm_first_pass_curves must be 1-1000, got {self.ecm_first_pass_curves}"
@@ -151,8 +148,7 @@ class HybridConfig:
         if self.ecm_second_pass_bound <= self.ecm_first_pass_bound:
             raise ValueError(
                 f"ecm_second_pass_bound ({self.ecm_second_pass_bound}) must be > "
-                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})"
-            )
+                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})")
         if not 10 <= self.siqs_max_bit_length <= 500:
             raise ValueError(
                 f"siqs_max_bit_length must be 10-500, got {self.siqs_max_bit_length}"

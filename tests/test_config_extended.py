@@ -161,42 +161,42 @@ def test_hybrid_config_invalid_gnfs_timeout() -> None:
 def test_digit_threshold_bucket_small() -> None:
     """Verify bucket 0 for small inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 30).bit_length()) == 0
+    assert cfg.digit_threshold_bucket((2**30).bit_length()) == 0
     assert cfg.digit_threshold_bucket(SMALL_INTEGER_BIT_BOUND) == 0
 
 
 def test_digit_threshold_bucket_medium() -> None:
     """Verify bucket 1 for medium inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 50).bit_length()) == 1
+    assert cfg.digit_threshold_bucket((2**50).bit_length()) == 1
     assert cfg.digit_threshold_bucket(MEDIUM_INTEGER_BIT_BOUND) == 1
 
 
 def test_digit_threshold_bucket_large() -> None:
     """Verify bucket 2 for large inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 100).bit_length()) == 2
+    assert cfg.digit_threshold_bucket((2**100).bit_length()) == 2
     assert cfg.digit_threshold_bucket(LARGE_INTEGER_BIT_BOUND) == 2
 
 
 def test_digit_threshold_bucket_xlarge() -> None:
     """Verify bucket 3 for extra-large inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 200).bit_length()) == 3
+    assert cfg.digit_threshold_bucket((2**200).bit_length()) == 3
     assert cfg.digit_threshold_bucket(XLARGE_INTEGER_BIT_BOUND) == 3
 
 
 def test_digit_threshold_bucket_very_large() -> None:
     """Verify bucket 4 for very large inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 300).bit_length()) == 4
+    assert cfg.digit_threshold_bucket((2**300).bit_length()) == 4
     assert cfg.digit_threshold_bucket(SIQS_INTEGER_BIT_BOUND) == 4
 
 
 def test_digit_threshold_bucket_extreme() -> None:
     """Verify bucket 5 for extreme inputs."""
     cfg = HybridConfig()
-    assert cfg.digit_threshold_bucket((2 ** 400).bit_length()) == 5
+    assert cfg.digit_threshold_bucket((2**400).bit_length()) == 5
 
 
 # ---------------------------------------------------------------------------

@@ -9,9 +9,9 @@ from loguru import logger
 
 from factorise.core import FactoriserConfig
 from factorise.core import ensure_integer_input
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 
 logger.disable("factorise")
 
@@ -35,7 +35,8 @@ class ImprovedPollardPMinusOneStage:
         bounds: tuple[int, ...] | None = None,
         bases: tuple[int, ...] | None = None,
     ) -> None:
-        self.__bounds = bounds if bounds is not None else (10**6, 10**7, 10**8, 10**9)
+        self.__bounds = bounds if bounds is not None else (10**6, 10**7, 10**8,
+                                                           10**9)
         self.__bases = bases if bases is not None else (2, 3, 5, 7, 11)
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
@@ -84,5 +85,6 @@ class ImprovedPollardPMinusOneStage:
             status=StageStatus.FAILURE,
             factor=None,
             elapsed_ms=elapsed_ms(start),
-            reason=f"no smooth factor found with bounds up to {self.__bounds[-1]}",
+            reason=
+            f"no smooth factor found with bounds up to {self.__bounds[-1]}",
         )

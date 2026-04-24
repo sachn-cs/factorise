@@ -89,7 +89,8 @@ class GNFSStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=(time.monotonic() - start) * 1000,
-                reason=f"n ({bit_length} bits) below GNFS minimum {GNFS_MIN_BIT_LENGTH} bits",
+                reason=
+                f"n ({bit_length} bits) below GNFS minimum {GNFS_MIN_BIT_LENGTH} bits",
             )
         if bit_length > GNFS_MAX_BIT_LENGTH:
             return StageResult(
@@ -97,7 +98,8 @@ class GNFSStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=(time.monotonic() - start) * 1000,
-                reason=f"n ({bit_length} bits) above GNFS maximum {GNFS_MAX_BIT_LENGTH} bits",
+                reason=
+                f"n ({bit_length} bits) above GNFS maximum {GNFS_MAX_BIT_LENGTH} bits",
             )
 
         if is_prime(n):
@@ -161,8 +163,7 @@ class GNFSStage(FactorStage):
         """Run the external GNFS tool on n and return a factor if found."""
         if not shutil.which(self.__binary):
             raise FactorisationError(
-                f"GNFS binary {self.__binary!r} not found on PATH"
-            )
+                f"GNFS binary {self.__binary!r} not found on PATH")
 
         with tempfile.TemporaryDirectory() as tmpdir:
             input_file = os.path.join(tmpdir, "input.txt")
@@ -186,7 +187,8 @@ class GNFSStage(FactorStage):
                     f"GNFS timed out after {self.__timeout_seconds}s for n={n}"
                 ) from None
 
-            factors = self.parse_factor_output(result.stdout + result.stderr, fact_file)
+            factors = self.parse_factor_output(result.stdout + result.stderr,
+                                               fact_file)
             if factors:
                 for f in factors:
                     if is_prime(f) and n % f == 0:
@@ -195,14 +197,13 @@ class GNFSStage(FactorStage):
             if result.returncode != 0:
                 raise FactorisationError(
                     f"GNFS exited with code {result.returncode}: "
-                    f"{(result.stdout + result.stderr)[:500]}"
-                )
+                    f"{(result.stdout + result.stderr)[:500]}")
 
-            raise FactorisationError(f"GNFS produced no parseable factors for n={n}")
+            raise FactorisationError(
+                f"GNFS produced no parseable factors for n={n}")
 
-    def build_command(
-        self, input_file: str, fact_file: str, tmpdir: str, n: int
-    ) -> list[str]:
+    def build_command(self, input_file: str, fact_file: str, tmpdir: str,
+                      n: int) -> list[str]:
         """Build the subprocess command for the GNFS tool."""
         if self.__binary == "msieve":
             return [
@@ -223,9 +224,9 @@ class GNFSStage(FactorStage):
             ]
         return [self.__binary, input_file]
 
-    def parse_factor_output(
-        self, output: str, fact_file: str | None = None
-    ) -> list[int]:
+    def parse_factor_output(self,
+                            output: str,
+                            fact_file: str | None = None) -> list[int]:
         """Parse prime factors from GNFS tool output."""
         factors: list[int] = []
 
@@ -236,14 +237,10 @@ class GNFSStage(FactorStage):
                     if line.isdigit():
                         factors.append(int(line))
 
-        for match in re.finditer(
-            r"p\d+\s*=\s*(\d+)", output, re.IGNORECASE
-        ):
+        for match in re.finditer(r"p\d+\s*=\s*(\d+)", output, re.IGNORECASE):
             factors.append(int(match.group(1)))
 
-        for match in re.finditer(
-            r"^\s*(\d{5,})\s*$", output, re.MULTILINE
-        ):
+        for match in re.finditer(r"^\s*(\d{5,})\s*$", output, re.MULTILINE):
             candidate = int(match.group(1))
             if self.looks_like_prime(candidate):
                 factors.append(candidate)

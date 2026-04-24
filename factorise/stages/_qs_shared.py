@@ -68,8 +68,7 @@ def find_dependency(
     since they produce x ≡ y (mod n) and never yield a non-trivial factor.
     """
     non_trivial = [
-        rel
-        for rel in relations
+        rel for rel in relations
         if any(exp % 2 == 1 for exp in rel["exponents"])
     ]
     if len(non_trivial) < num_primes:

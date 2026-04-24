@@ -75,9 +75,8 @@ def test_factorise_original_preserved() -> None:
         assert factorise(n, DEFAULT_CONFIG).original == n
 
 
-@pytest.mark.parametrize(
-    "n,expected_sign", [(2, 1), (100, 1), (-2, -1), (-100, -1)]
-)
+@pytest.mark.parametrize("n,expected_sign", [(2, 1), (100, 1), (-2, -1),
+                                             (-100, -1)])
 def test_factorise_sign(n: int, expected_sign: int) -> None:
     assert factorise(n, DEFAULT_CONFIG).sign == expected_sign
 
@@ -85,16 +84,44 @@ def test_factorise_sign(n: int, expected_sign: int) -> None:
 @pytest.mark.parametrize(
     "n, expected_factors, expected_powers",
     [
-        (12, [2, 3], {2: 2, 3: 1}),
-        (24, [2, 3], {2: 3, 3: 1}),
-        (8, [2], {2: 3}),
-        (360, [2, 3, 5], {2: 3, 3: 2, 5: 1}),
-        (123456789, [3, 3607, 3803], {3: 2, 3607: 1, 3803: 1}),
-        (30030, [2, 3, 5, 7, 11, 13], {2: 1, 3: 1, 5: 1, 7: 1, 11: 1, 13: 1}),
-        (97, [97], {97: 1}),
+        (12, [2, 3], {
+            2: 2,
+            3: 1
+        }),
+        (24, [2, 3], {
+            2: 3,
+            3: 1
+        }),
+        (8, [2], {
+            2: 3
+        }),
+        (360, [2, 3, 5], {
+            2: 3,
+            3: 2,
+            5: 1
+        }),
+        (123456789, [3, 3607, 3803], {
+            3: 2,
+            3607: 1,
+            3803: 1
+        }),
+        (30030, [2, 3, 5, 7, 11, 13], {
+            2: 1,
+            3: 1,
+            5: 1,
+            7: 1,
+            11: 1,
+            13: 1
+        }),
+        (97, [97], {
+            97: 1
+        }),
         (1, [], {}),
         (-1, [], {}),
-        (-12, [2, 3], {2: 2, 3: 1}),
+        (-12, [2, 3], {
+            2: 2,
+            3: 1
+        }),
         (0, [], {}),
     ],
 )
@@ -110,8 +137,7 @@ def test_factorise_factors_and_powers(
     assert all(is_prime(factor) for factor in res.factors)
     if res.factors:
         reconstructed_product = _product(
-            (prime**power for prime, power in res.powers.items())
-        )
+            (prime**power for prime, power in res.powers.items()))
         assert reconstructed_product == abs(n)
 
 
@@ -120,8 +146,7 @@ def test_factorise_powers_consistent_with_factors(n: int) -> None:
     """Verify that the powers dictionary is consistent with the factor list."""
     res = factorise(n, DEFAULT_CONFIG)
     reconstructed = sorted(
-        (prime for prime, power in res.powers.items() for _ in range(power))
-    )
+        (prime for prime, power in res.powers.items() for _ in range(power)))
     assert sorted(set(reconstructed)) == res.factors
 
 
@@ -165,9 +190,8 @@ def test_factorise_primorial() -> None:
     assert res.factors == [2, 3, 5, 7, 11, 13]
 
 
-@pytest.mark.parametrize(
-    "p,q", [(9973, 9967), (99991, 99989), (999983, 999979)]
-)
+@pytest.mark.parametrize("p,q", [(9973, 9967), (99991, 99989),
+                                 (999983, 999979)])
 def test_factorise_semiprime(p: int, q: int) -> None:
     """Verify factorisation of semiprimes (p * q)."""
     res = factorise(p * q, DEFAULT_CONFIG)
@@ -214,9 +238,8 @@ def test_factorise_negative_one() -> None:
     assert res.is_prime is False
 
 
-@pytest.mark.parametrize(
-    "bad", [None, 1.5, "12", [12], (12,), {12}, True, False]
-)
+@pytest.mark.parametrize("bad",
+                         [None, 1.5, "12", [12], (12,), {12}, True, False])
 def test_factorise_invalid_type_raises(bad: object) -> None:
     """Verify that factorise raises TypeError for non-integer inputs."""
     with pytest.raises(TypeError):
@@ -225,9 +248,9 @@ def test_factorise_invalid_type_raises(bad: object) -> None:
 
 def test_factorise_uses_provided_config() -> None:
     """Verify that factorise respects the FactoriserConfig instance if provided."""
-    cfg = FactoriserConfig(
-        batch_size=64, max_iterations=1000000, max_retries=10
-    )
+    cfg = FactoriserConfig(batch_size=64,
+                           max_iterations=1000000,
+                           max_retries=10)
     res = factorise(60, cfg)
     assert res.factors == [2, 3, 5]
 
@@ -300,6 +323,5 @@ def test_factorise_thread_safety() -> None:
         thread.join(timeout=THREAD_JOIN_TIMEOUT_SECONDS)
         if thread.is_alive():
             raise ThreadNotJoinedError(
-                f"thread {thread.name} did not finish within timeout"
-            )
+                f"thread {thread.name} did not finish within timeout")
     assert not errors, "\n".join(errors)

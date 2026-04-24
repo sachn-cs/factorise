@@ -8,9 +8,9 @@ from loguru import logger
 
 from factorise.core import FactoriserConfig
 from factorise.core import ensure_integer_input
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 from factorise.stages._ecm_shared import EllipticCurveOperations
 from factorise.stages._ecm_shared import generate_primes_up_to
 
@@ -69,7 +69,8 @@ class TwoPassECMStage(EllipticCurveOperations):
 
         first_pass_primes = generate_primes_up_to(self.__first_pass_bound)
         for curve_num in range(self.__first_pass_curves):
-            factor = self.run_curve(n, curve_num, first_pass_primes, self.__first_pass_bound)
+            factor = self.run_curve(n, curve_num, first_pass_primes,
+                                    self.__first_pass_bound)
             if factor is not None and 1 < factor < n:
                 logger.debug(
                     "stage={stage} n={n} factor={factor} curve={curve}",
@@ -88,9 +89,9 @@ class TwoPassECMStage(EllipticCurveOperations):
 
         second_pass_primes = generate_primes_up_to(self.__second_pass_bound)
         for curve_num in range(self.__second_pass_curves):
-            factor = self.run_curve(
-                n, self.__first_pass_curves + curve_num, second_pass_primes, self.__second_pass_bound
-            )
+            factor = self.run_curve(n, self.__first_pass_curves + curve_num,
+                                    second_pass_primes,
+                                    self.__second_pass_bound)
             if factor is not None and 1 < factor < n:
                 logger.debug(
                     "stage={stage} n={n} factor={factor} curve={curve} stage=2",
@@ -112,8 +113,7 @@ class TwoPassECMStage(EllipticCurveOperations):
             status=StageStatus.FAILURE,
             factor=None,
             elapsed_ms=elapsed_ms(start),
-            reason=(
-                f"no factor found after {self.__first_pass_curves + self.__second_pass_curves} curves"
+            reason=
+            (f"no factor found after {self.__first_pass_curves + self.__second_pass_curves} curves"
             ),
         )
-

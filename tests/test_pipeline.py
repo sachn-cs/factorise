@@ -53,8 +53,7 @@ def _check_factorisation_result(n: int, result: FactorisationResult) -> None:
     )
     # Every factor is prime
     assert all(is_prime(f) for f in result.factors), (
-        f"non-prime factor found: {result.factors}"
-    )
+        f"non-prime factor found: {result.factors}")
     # Original preserved
     assert result.original == n
     # Sign correct
@@ -72,6 +71,7 @@ def _check_factorisation_result(n: int, result: FactorisationResult) -> None:
 
 
 class TestPipelineConstruction:
+
     def test_pipeline_default_constructs(self) -> None:
         pipeline = FactorisationPipeline()
         assert pipeline.config is not None
@@ -89,9 +89,9 @@ class TestPipelineConstruction:
         assert "pollard_rho" in pipeline.stages
 
     def test_pipeline_config_stage_config(self) -> None:
-        config = PipelineConfig(
-            batch_size=64, max_iterations=1_000_000, max_retries=10
-        )
+        config = PipelineConfig(batch_size=64,
+                                max_iterations=1_000_000,
+                                max_retries=10)
         derived = config.stage_config("pollard_rho")
         assert derived.batch_size == 64
         assert derived.max_iterations == 1_000_000
@@ -104,6 +104,7 @@ class TestPipelineConstruction:
 
 
 class TestStageInterface:
+
     def test_trial_division_stage(self) -> None:
         stage = TrialDivisionStage(bound=1000)
         assert stage.name == "trial_division"
@@ -139,6 +140,7 @@ class TestStageInterface:
 
 
 class TestPipelineEndToEnd:
+
     @pytest.mark.parametrize(
         "n",
         [
@@ -190,6 +192,7 @@ class TestPipelineEndToEnd:
 
 
 class TestFactoriseBackwardCompatibility:
+
     @pytest.mark.parametrize(
         "n,expected_factors",
         [
@@ -202,9 +205,8 @@ class TestFactoriseBackwardCompatibility:
             (123456789, [3, 3607, 3803]),
         ],
     )
-    def test_factorise_no_pipeline(
-        self, n: int, expected_factors: list[int]
-    ) -> None:
+    def test_factorise_no_pipeline(self, n: int,
+                                   expected_factors: list[int]) -> None:
         """Verify existing behavior is preserved when use_pipeline=False."""
         config = FactoriserConfig(use_pipeline=False)
         result = factorise(n, config)
@@ -223,9 +225,8 @@ class TestFactoriseBackwardCompatibility:
             (123456789, [3, 3607, 3803]),
         ],
     )
-    def test_factorise_with_pipeline(
-        self, n: int, expected_factors: list[int]
-    ) -> None:
+    def test_factorise_with_pipeline(self, n: int,
+                                     expected_factors: list[int]) -> None:
         """Verify pipeline mode produces correct results."""
         config = FactoriserConfig(use_pipeline=True)
         result = factorise(n, config)
@@ -239,9 +240,8 @@ class TestFactoriseBackwardCompatibility:
     def test_factorise_powers_consistent_with_factors(self, n: int) -> None:
         config = FactoriserConfig(use_pipeline=False)
         result = factorise(n, config)
-        reconstructed = sorted(
-            (prime for prime, power in result.powers.items() for _ in range(power))
-        )
+        reconstructed = sorted((prime for prime, power in result.powers.items()
+                                for _ in range(power)))
         assert sorted(set(reconstructed)) == result.factors
 
     @pytest.mark.parametrize("p", [9973, 99991, 999983])
@@ -298,6 +298,7 @@ class TestFactoriseBackwardCompatibility:
 
 
 class TestCorrectnessInvariants:
+
     @pytest.mark.parametrize(
         "n",
         [
@@ -366,6 +367,7 @@ class TestCorrectnessInvariants:
 
 
 class TestStageSelection:
+
     def test_trial_division_used_first(self) -> None:
         """Trial division should be used before pollard_rho for small factors."""
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
@@ -395,7 +397,8 @@ class TestStageSelection:
 
     def test_disabled_stage_skipped(self) -> None:
         """Unknown or disabled stages should be skipped silently."""
-        config = PipelineConfig(stage_order=("trial_division", "nonexistent_stage"))
+        config = PipelineConfig(stage_order=("trial_division",
+                                             "nonexistent_stage"))
         pipeline = FactorisationPipeline(config)
         # Should still succeed using trial division
         result = pipeline.attempt(12, config=DEFAULT_CONFIG)
@@ -408,10 +411,10 @@ class TestStageSelection:
 
 
 class TestFailureIsolation:
+
     def test_all_stages_fail_raises_factorisation_error(self) -> None:
         """When all stages fail, FactorisationError should be raised."""
         from unittest.mock import patch
-
 
         # Patch trial_division to always fail and pollard_rho to always fail
         fail_result = StageResult(
@@ -422,16 +425,15 @@ class TestFailureIsolation:
             reason="always fails",
         )
 
-        with patch.object(
-            TrialDivisionStage, "attempt", return_value=fail_result
-        ):
+        with patch.object(TrialDivisionStage,
+                          "attempt",
+                          return_value=fail_result):
             with patch(
-                "factorise.stages.pollard_rho.PollardRhoStage.attempt",
-                return_value=fail_result,
+                    "factorise.stages.pollard_rho.PollardRhoStage.attempt",
+                    return_value=fail_result,
             ):
-                config = PipelineConfig(
-                    stage_order=("trial_division", "pollard_rho")
-                )
+                config = PipelineConfig(stage_order=("trial_division",
+                                                     "pollard_rho"))
                 pipeline = FactorisationPipeline(config)
                 result = pipeline.attempt(233 * 239, config=DEFAULT_CONFIG)
                 assert result.status is StageStatus.FAILURE
@@ -451,6 +453,7 @@ class TestFailureIsolation:
 
 
 class TestPollardRhoRegression:
+
     @pytest.mark.parametrize(
         "n",
         [
@@ -484,7 +487,9 @@ class TestPollardRhoRegression:
     def test_pollard_brent_seed_reproducible(self) -> None:
         """Pollard-Brent with seed should be reproducible."""
         n = 99_991 * 99_989
-        cfg = FactoriserConfig(seed=123, max_retries=5, max_iterations=1_000_000)
+        cfg = FactoriserConfig(seed=123,
+                               max_retries=5,
+                               max_iterations=1_000_000)
         assert pollard_brent(n, cfg) == pollard_brent(n, cfg)
 
     def test_factor_flatten_no_pipeline(self) -> None:
@@ -500,7 +505,9 @@ class TestPollardRhoRegression:
 
 
 class TestPipelineConfigEnv:
-    def test_pipeline_config_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+
+    def test_pipeline_config_from_env(self,
+                                      monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("FACTORISE_BOUND_MEDIUM", "1000000")
         monkeypatch.setenv("FACTORISE_ECM_CURVES", "50")
         config = PipelineConfig.from_env()
@@ -514,6 +521,7 @@ class TestPipelineConfigEnv:
 
 
 class TestFactorStageInterface:
+
     def test_all_stages_have_name(self) -> None:
         """Every stage must have a non-empty name attribute."""
         config = PipelineConfig()
@@ -537,6 +545,7 @@ class TestFactorStageInterface:
 
 
 class TestStageResultObservability:
+
     def test_stage_result_has_elapsed_ms(self) -> None:
         """StageResult should include elapsed_ms."""
         stage = TrialDivisionStage()
@@ -564,6 +573,7 @@ class TestStageResultObservability:
 
 
 class TestGNFSStage:
+
     def test_gnfs_stage_not_available(self) -> None:
         """GNFS stage should skip when binary is not on PATH."""
         from factorise.stages.gnfs import GNFSStage
@@ -588,6 +598,7 @@ class TestGNFSStage:
 
 
 class TestECMStage:
+
     def test_ecm_stage_basic(self) -> None:
         from factorise.stages.ecm import ECMStage
 

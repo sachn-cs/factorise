@@ -161,6 +161,7 @@ class FactorStage(ABC):
         """
         ...
 
+
 def elapsed_ms(start: float) -> float:
     """Return elapsed milliseconds since *start* (from time.monotonic())."""
     return (time.monotonic() - start) * 1000
@@ -369,36 +370,29 @@ class PipelineConfig:
 
         return cls(
             bound_small=int(
-                os.getenv("FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL))
-            ),
+                os.getenv("FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL))),
             bound_medium=int(
-                os.getenv("FACTORISE_BOUND_MEDIUM", str(DEFAULT_BOUND_MEDIUM))
-            ),
+                os.getenv("FACTORISE_BOUND_MEDIUM", str(DEFAULT_BOUND_MEDIUM))),
             bound_large=int(
-                os.getenv("FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE))
-            ),
+                os.getenv("FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE))),
             bound_xlarge=int(
-                os.getenv("FACTORISE_BOUND_XLARGE", str(DEFAULT_BOUND_XLARGE))
-            ),
+                os.getenv("FACTORISE_BOUND_XLARGE", str(DEFAULT_BOUND_XLARGE))),
             trial_division_bound=int(
-                os.getenv("FACTORISE_TRIAL_DIVISION_BOUND", "10000")
-            ),
+                os.getenv("FACTORISE_TRIAL_DIVISION_BOUND", "10000")),
             pm1_bound=int(
-                os.getenv("FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND))
-            ),
+                os.getenv("FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND))),
             ecm_curves=int(
-                os.getenv("FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES))
-            ),
+                os.getenv("FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES))),
             gnfs_timeout=int(
-                os.getenv("FACTORISE_GNFS_TIMEOUT", str(DEFAULT_GNFS_TIMEOUT_SECONDS))
-            ),
+                os.getenv("FACTORISE_GNFS_TIMEOUT",
+                          str(DEFAULT_GNFS_TIMEOUT_SECONDS))),
             gnfs_binary=os.getenv("FACTORISE_GNFS_BINARY", "msieve"),
-            max_iterations=int(
-                os.getenv("FACTORISE_MAX_ITERATIONS", "10000000")
-            ),
+            max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS",
+                                         "10000000")),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
             batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
-            seed=int(seed) if (seed := os.getenv("FACTORISE_SEED")) is not None else None,
+            seed=int(seed) if
+            (seed := os.getenv("FACTORISE_SEED")) is not None else None,
         )
 
 
@@ -440,12 +434,10 @@ class FactorisationPipeline:
         for name in self.__config.enabled_stages():
             if name == "trial_division":
                 self.__stages[name] = TrialDivisionStage(
-                    bound=self.__config.trial_division_bound
-                )
+                    bound=self.__config.trial_division_bound)
             elif name == "pollard_pminus1":
                 self.__stages[name] = PollardPMinusOneStage(
-                    bound=self.__config.pm1_bound
-                )
+                    bound=self.__config.pm1_bound)
             elif name == "pollard_rho":
                 from factorise.stages.pollard_rho import PollardRhoStage
 
@@ -541,8 +533,7 @@ class FactorisationPipeline:
 
             if not result.was_skipped():
                 failures.append(
-                    f"{stage_name}({result.status.value}): {result.reason}"
-                )
+                    f"{stage_name}({result.status.value}): {result.reason}")
 
         return StageResult(
             stage_name="pipeline",

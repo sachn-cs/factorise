@@ -51,7 +51,7 @@ def test_select_medium_bits_pm1_finds_factor() -> None:
     pm1 = ImprovedPollardPMinusOneStage()
     ecm = TwoPassECMStage()
     siqs = SIQSStage()
-    n = 3 * (2 ** 40 + 1)  # 41 bits, 3 is a small factor
+    n = 3 * (2**40 + 1)  # 41 bits, 3 is a small factor
     factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
     assert factor is not None
 
@@ -64,7 +64,7 @@ def test_select_large_bits_rho_ecm_pm1() -> None:
     ecm = TwoPassECMStage()
     siqs = SIQSStage()
     # 67-bit number: 2**67 - 1 is prime, use a composite near there
-    n = (2 ** 33 + 1) * (2 ** 34 + 1)
+    n = (2**33 + 1) * (2**34 + 1)
     _factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
     # May or may not find factor; just verify no crash
 
@@ -80,14 +80,14 @@ def test_invoke_pollard_rho_error() -> None:
 def test_invoke_external_gnfs_too_small() -> None:
     """Verify invoke_external_gnfs skips small inputs."""
     cfg = HybridConfig()
-    factor = invoke_external_gnfs(2 ** 70 + 1, cfg)
+    factor = invoke_external_gnfs(2**70 + 1, cfg)
     assert factor is None
 
 
 def test_invoke_external_gnfs_too_large() -> None:
     """Verify invoke_external_gnfs skips huge inputs."""
     cfg = HybridConfig()
-    n = 2 ** 600 + 1
+    n = 2**600 + 1
     factor = invoke_external_gnfs(n, cfg)
     assert factor is None
 
@@ -220,11 +220,10 @@ def test_gnfs_run_external_timeout() -> None:
     """Verify _run_external_gnfs raises on timeout."""
     stage = GNFSStage(binary="msieve", timeout_seconds=1)
     with mock.patch("shutil.which", return_value="/bin/msieve"):
-        with mock.patch(
-            "subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 1)
-        ):
+        with mock.patch("subprocess.run",
+                        side_effect=subprocess.TimeoutExpired("cmd", 1)):
             with pytest.raises(FactorisationError):
-                stage.run_external_gnfs(2 ** 90 + 1)
+                stage.run_external_gnfs(2**90 + 1)
 
 
 def test_gnfs_run_external_bad_exit() -> None:
@@ -236,11 +235,11 @@ def test_gnfs_run_external_bad_exit() -> None:
     mock_result.returncode = 1
     with mock.patch("shutil.which", return_value="/bin/msieve"):
         with mock.patch("subprocess.run", return_value=mock_result):
-            with mock.patch.object(
-                stage, "parse_factor_output", return_value=[]
-            ):
+            with mock.patch.object(stage,
+                                   "parse_factor_output",
+                                   return_value=[]):
                 with pytest.raises(FactorisationError):
-                    stage.run_external_gnfs(2 ** 90 + 1)
+                    stage.run_external_gnfs(2**90 + 1)
 
 
 def test_gnfs_run_external_no_factors() -> None:
@@ -252,21 +251,19 @@ def test_gnfs_run_external_no_factors() -> None:
     mock_result.returncode = 0
     with mock.patch("shutil.which", return_value="/bin/msieve"):
         with mock.patch("subprocess.run", return_value=mock_result):
-            with mock.patch.object(
-                stage, "parse_factor_output", return_value=[]
-            ):
+            with mock.patch.object(stage,
+                                   "parse_factor_output",
+                                   return_value=[]):
                 with pytest.raises(FactorisationError):
-                    stage.run_external_gnfs(2 ** 90 + 1)
+                    stage.run_external_gnfs(2**90 + 1)
 
 
 def test_gnfs_attempt_successful() -> None:
     """Verify GNFS attempt returns SUCCESS when factor found."""
     stage = GNFSStage(binary="msieve")
     with mock.patch.object(stage, "is_tool_available", return_value=True):
-        with mock.patch.object(
-            stage, "run_external_gnfs", return_value=7
-        ):
-            n = 2 ** 90 + 1  # Must be >= 80 bits
+        with mock.patch.object(stage, "run_external_gnfs", return_value=7):
+            n = 2**90 + 1  # Must be >= 80 bits
             result = stage.attempt(n, config=FactoriserConfig())
             assert result.status is StageStatus.SUCCESS
             assert result.factor is not None
@@ -275,7 +272,7 @@ def test_gnfs_attempt_successful() -> None:
 def test_gnfs_attempt_tool_unavailable() -> None:
     """Verify GNFS skips when binary not available."""
     stage = GNFSStage(binary="nonexistent_tool_xyz")
-    result = stage.attempt(2 ** 90 + 1, config=FactoriserConfig())
+    result = stage.attempt(2**90 + 1, config=FactoriserConfig())
     assert result.status is StageStatus.SKIPPED
 
 
@@ -317,9 +314,7 @@ def test_has_carmichael_property_not_all_divide() -> None:
 
 def test_brent_pollard_cycle_result_repr() -> None:
     """Verify __repr__ of BrentPollardCycleResult."""
-    result = BrentPollardCycleResult(
-        PollardBrentOutcome.SUCCESS, 10, 7
-    )
+    result = BrentPollardCycleResult(PollardBrentOutcome.SUCCESS, 10, 7)
     r = repr(result)
     assert "BrentPollardCycleResult" in r
     assert "SUCCESS" in r

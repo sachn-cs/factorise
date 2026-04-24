@@ -9,10 +9,10 @@ from loguru import logger
 from factorise.core import EXTENDED_SMALL_PRIMES
 from factorise.core import FactoriserConfig
 from factorise.core import ensure_integer_input
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 
 logger.disable("factorise")
 
@@ -37,9 +37,8 @@ class OptimizedTrialDivisionStage(FactorStage):
         prime_table: tuple[int, ...] | None = None,
     ) -> None:
         self.__bound = bound if bound is not None else 10_000
-        self.__prime_table = (
-            prime_table if prime_table is not None else EXTENDED_SMALL_PRIMES
-        )
+        self.__prime_table = (prime_table if prime_table is not None else
+                              EXTENDED_SMALL_PRIMES)
 
     def attempt(self, n: int, *, config: FactoriserConfig) -> StageResult:
         start = time.monotonic()

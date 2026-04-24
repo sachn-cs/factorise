@@ -1,6 +1,5 @@
 """Additional edge-case tests for factorise.core."""
 
-
 from factorise.core import find_perfect_power
 from factorise.core import has_carmichael_property
 from factorise.core import is_prime
@@ -16,7 +15,8 @@ def test_carmichael_small() -> None:
     # 2 is even, not Carmichael
     assert has_carmichael_property(2) is False
     # 3 is prime, not Carmichael
-    assert has_carmichael_property(3) is True  # bug: function returns True for primes
+    assert has_carmichael_property(
+        3) is True  # bug: function returns True for primes
     assert has_carmichael_property(4) is False
 
 
