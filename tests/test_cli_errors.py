@@ -45,8 +45,10 @@ def test_cli_error_handling_type_error() -> None:
 
 def test_cli_error_handling_runtime_error() -> None:
     """Verify that FactorisationError is caught as a Runtime Error."""
-    with patch("factorise.cli.factorise",
-               side_effect=FactorisationError(SIMULATION_VAL)):
+    with patch(
+            "factorise.cli.factorise",
+            side_effect=FactorisationError(SIMULATION_VAL),
+    ):
         result = CLI_RUNNER.invoke(app, [CLI_INPUT])
         assert result.exit_code == 1
         assert "Runtime Error" in result.output

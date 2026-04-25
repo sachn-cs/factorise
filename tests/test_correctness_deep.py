@@ -7,7 +7,7 @@ Pollard-Brent completion within CI time limits.
 
 import pytest
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 
 # High-precision prime constants verified for this suite

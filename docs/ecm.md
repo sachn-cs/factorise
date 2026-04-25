@@ -1,6 +1,6 @@
 # Elliptic Curve Method (ECM)
 
-ECM is a modern general-purpose factorisation algorithm that is particularly effective for finding medium-sized factors (10–40 digits).
+ECM is a modern general-purpose factorisation algorithm that is particularly effective for finding medium-sized factors (10-40 digits).
 
 ## Algorithm Overview
 
@@ -20,7 +20,7 @@ The implementation uses Montgomery coordinates for fast point multiplication wit
 
 ## When to Use
 
-- Most effective for finding factors in the 10–40 digit range.
+- Most effective for finding factors in the 10-40 digit range.
 - Better than Pollard's Rho for composites whose smallest factor is in this range.
 
 ## Implementation
@@ -29,5 +29,6 @@ The implementation uses Montgomery coordinates for fast point multiplication wit
 from factorise.stages.ecm import ECMStage
 
 stage = ECMStage(curves=20)
-result = stage.attempt(1234567890123456789, config=FactoriserConfig())
+result = stage.attempt(1234567890123456789)
+print(result.factor)
 ```

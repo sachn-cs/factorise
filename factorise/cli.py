@@ -1,6 +1,6 @@
 """Command-line interface for factorise.
 
-Provides the `factorise` Typer application. It handles user input mapping,
+Provides the `factorise` Typer application. It handles user input parsing,
 FactoriserConfig construction from the environment, graceful signal handling
 for shutdown, and formatting the FactorisationResult into Rich tables.
 """
@@ -13,7 +13,6 @@ import signal
 import sys
 import traceback
 from types import FrameType
-from typing import Any
 from typing import Final
 
 import typer
@@ -22,9 +21,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from factorise.config import FactoriserConfig
 from factorise.core import FactorisationError
 from factorise.core import FactorisationResult
-from factorise.core import FactoriserConfig
 from factorise.core import factorise
 
 # Configuration Constants
@@ -35,7 +34,7 @@ DEFAULT_LOG_FORMAT: Final[str] = "human"
 SUCCESS_EXIT_CODE: Final[int] = 0
 ERROR_EXIT_CODE: Final[int] = 1
 VALID_LOG_LEVELS: Final[frozenset[str]] = frozenset(
-    {"DEBUG", "INFO", "WARNING", "ERROR"})
+    {"DEBUG", "INFO", "WARNING", "ERROR"},)
 VALID_LOG_FORMATS: Final[frozenset[str]] = frozenset({"human", "json"})
 TRACE_CONTEXT_ENV_NAMES: Final[dict[str, str]] = {
     "request_id": "FACTORISE_REQUEST_ID",
@@ -56,15 +55,18 @@ console = Console()
 # ---------------------------------------------------------------------------
 
 
-def handle_signal(signum: int, frame: FrameType | None) -> None:
+def handle_signal(signum: int, _frame: FrameType | None) -> None:
     """Log the received system signal and exit the sequence cleanly.
 
     Args:
         signum: The integer identifier of the caught signal.
         frame: The current stack frame (unused).
+
     """
-    logger.info("Received signal {sig}, shutting down.",
-                sig=signal.Signals(signum).name)
+    logger.info(
+        "Received signal {sig}, shutting down.",
+        sig=signal.Signals(signum).name,
+    )
     code = 128 + signum
     sys.exit(code)
 
@@ -85,20 +87,22 @@ def display_prime(number: int) -> None:
 
     Args:
         number: The evaluated prime integer.
+
     """
     console.print(
         Panel(
             f"[bold green]{number}[/bold green] is a prime number!",
             title="Result",
-        ))
+        ),)
 
 
-def display_factors(result: FactorisationResult, verbose: bool) -> None:
+def display_factors(result: FactorisationResult, *, verbose: bool) -> None:
     """Print the prime decomposition as a formatted Rich table.
 
     Args:
         result: The fully computed structured factorisation result.
         verbose: True to append the mathematical factorisation expression string.
+
     """
     table = Table(title=f"Factorisation of {result.original}")
     table.add_column("Prime Factor", justify="right", style="cyan")
@@ -153,9 +157,9 @@ def resolve_trace_context(record: dict[str, object]) -> dict[str, str]:
     return context
 
 
-def json_log_sink(message: Any) -> None:
+def json_log_sink(message: object) -> None:
     """Emit one structured JSON log object per line to stderr."""
-    record = message.record
+    record = message.record  # type: ignore[attr-defined]
     payload: dict[str, object] = {
         "timestamp": record["time"].isoformat(),
         "level": record["level"].name,
@@ -179,15 +183,20 @@ def json_log_sink(message: Any) -> None:
                 str(exception.value) if exception.value is not None else None,
             "stacktrace":
                 "".join(
-                    traceback.format_exception(exception.type, exception.value,
-                                               exception.traceback)),
+                    traceback.format_exception(
+                        exception.type,
+                        exception.value,
+                        exception.traceback,
+                    ),),
         }
 
     sys.stderr.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
-def configure_logging(log_level: str,
-                      log_format: str = DEFAULT_LOG_FORMAT) -> None:
+def configure_logging(
+    log_level: str,
+    log_format: str = DEFAULT_LOG_FORMAT,
+) -> None:
     """Configure the global Loguru logger formatting and verbosity.
 
     Args:
@@ -196,6 +205,7 @@ def configure_logging(log_level: str,
 
     Raises:
         ValueError: If log_level or log_format is unsupported.
+
     """
     normalized_level = normalize_log_level(log_level)
     normalized_format = normalize_log_format(log_format)
@@ -215,6 +225,7 @@ def configure_logging(log_level: str,
 @app.command()
 def main(
     number: int = typer.Argument(..., help="The integer to factorise."),
+    *,
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -244,6 +255,7 @@ def main(
 
     Raises:
         typer.Exit: Raised on invalid input, invalid config, or factorisation failure.
+
     """
     try:
         configure_logging(log_level, log_format)
@@ -274,7 +286,7 @@ def main(
     if result.is_prime:
         display_prime(number)
     else:
-        display_factors(result, verbose)
+        display_factors(result, verbose=verbose)
 
     logger.info("CLI complete factors={factors}", factors=result.factors)
 

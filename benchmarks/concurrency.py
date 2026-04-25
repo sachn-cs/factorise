@@ -4,7 +4,7 @@ import concurrent.futures
 import time
 from collections.abc import Callable
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 
 # Test numbers: semiprimes that require Pollard-Brent but are quick

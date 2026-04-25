@@ -2,7 +2,7 @@
 
 import multiprocessing
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 
 # Use a known semiprime (83 * 97)

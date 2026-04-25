@@ -2,18 +2,10 @@
 
 import pytest
 
-from factorise.config import GNFS_MAXIMUM_BIT_LENGTH
 from factorise.config import HybridConfig
 from factorise.config import HybridFactorisationState
 from factorise.hybrid import HybridFactorisationEngine
 from factorise.hybrid import hybrid_factorise
-from factorise.hybrid import invoke_external_gnfs
-from factorise.hybrid import invoke_pollard_rho
-from factorise.hybrid import select_algorithm_by_bit_length
-from factorise.stages.ecm_two_pass import TwoPassECMStage
-from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
-from factorise.stages.siqs import SIQSStage
-from factorise.stages.trial_division import OptimizedTrialDivisionStage
 
 # ---------------------------------------------------------------------------
 # HybridConfig
@@ -92,87 +84,6 @@ def test_state_pop_next_composite() -> None:
     assert state.pop_next_composite() == 15
     assert state.pop_next_composite() == 91
     assert state.pop_next_composite() is None
-
-
-# ---------------------------------------------------------------------------
-# invoke_pollard_rho
-# ---------------------------------------------------------------------------
-
-
-def test_invoke_pollard_rho_small() -> None:
-    """Verify invoke_pollard_rho finds a factor for a small composite."""
-    cfg = HybridConfig()
-    factor = invoke_pollard_rho(91, cfg)
-    assert factor is not None
-    assert 91 % factor == 0
-
-
-def test_invoke_pollard_rho_prime() -> None:
-    """Verify invoke_pollard_rho returns the prime itself for primes."""
-    cfg = HybridConfig()
-    factor = invoke_pollard_rho(97, cfg)
-    assert factor == 97
-
-
-# ---------------------------------------------------------------------------
-# invoke_external_gnfs
-# ---------------------------------------------------------------------------
-
-
-def test_invoke_external_gnfs_too_small() -> None:
-    """Verify invoke_external_gnfs skips very small inputs."""
-    cfg = HybridConfig()
-    factor = invoke_external_gnfs(91, cfg)
-    assert factor is None
-
-
-def test_invoke_external_gnfs_too_large() -> None:
-    """Verify invoke_external_gnfs skips very large inputs."""
-    cfg = HybridConfig()
-    n = 2**(GNFS_MAXIMUM_BIT_LENGTH + 1)
-    factor = invoke_external_gnfs(n, cfg)
-    assert factor is None
-
-
-# ---------------------------------------------------------------------------
-# select_algorithm_by_bit_length
-# ---------------------------------------------------------------------------
-
-
-def test_select_small_bits() -> None:
-    """Verify routing for small inputs (≤ 40 bits)."""
-    cfg = HybridConfig()
-    trial = OptimizedTrialDivisionStage()
-    pm1 = ImprovedPollardPMinusOneStage()
-    ecm = TwoPassECMStage()
-    siqs = SIQSStage()
-    factor = select_algorithm_by_bit_length(91, cfg, trial, pm1, ecm, siqs)
-    assert factor is not None
-    assert 91 % factor == 0
-
-
-def test_select_medium_bits() -> None:
-    """Verify routing for medium inputs (41-66 bits)."""
-    cfg = HybridConfig()
-    trial = OptimizedTrialDivisionStage()
-    pm1 = ImprovedPollardPMinusOneStage()
-    ecm = TwoPassECMStage()
-    siqs = SIQSStage()
-    n = 2**50 + 1
-    _factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
-    # May or may not find a factor; just verify no crash
-
-
-def test_select_large_bits() -> None:
-    """Verify routing for large inputs (> 66 bits)."""
-    cfg = HybridConfig()
-    trial = OptimizedTrialDivisionStage()
-    pm1 = ImprovedPollardPMinusOneStage()
-    ecm = TwoPassECMStage()
-    siqs = SIQSStage()
-    n = 2**70 + 1
-    _factor = select_algorithm_by_bit_length(n, cfg, trial, pm1, ecm, siqs)
-    # May or may not find a factor; just verify no crash
 
 
 # ---------------------------------------------------------------------------

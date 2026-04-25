@@ -8,7 +8,7 @@ This directory contains curated narrative documentation for the factorisation al
 - [Pollard's Rho](pollards_rho.md)
 - [Pollard's Rho (Brent Variant)](pollards_rho_brent.md)
 - [Trial Division](trial_division.md)
-- [Pollard p−1](pollard_pm1.md)
+- [Pollard p-1](pollard_pm1.md)
 - [Elliptic Curve Method (ECM)](ecm.md)
 - [Quadratic Sieve](quadratic_sieve.md)
 - [Self-Initializing Quadratic Sieve (SIQS)](siqs.md)

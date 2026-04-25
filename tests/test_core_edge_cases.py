@@ -5,8 +5,8 @@ from unittest.mock import patch
 
 import pytest
 
+from factorise.config import FactoriserConfig
 from factorise.core import BrentPollardCycleResult as AttemptResult
-from factorise.core import FactoriserConfig
 from factorise.core import PollardBrentOutcome as AttemptStatus
 from factorise.core import ensure_integer_input
 from factorise.core import execute_brent_pollard_cycle as pollard_brent_attempt
@@ -52,7 +52,7 @@ def test_pollard_brent_attempt_iteration_cap() -> None:
 
 
 def test_pollard_brent_attempt_backtrack_cap() -> None:
-    """Verify that pollard_brent_attempt returns ITERATION_CAP_HIT when backtrack budget is exhausted.
+    """Verify pollard_brent_attempt returns ITERATION_CAP_HIT when backtrack budget is exhausted.
 
     With max_iterations=1, after 1 iteration is used in the main loop,
     backtrack_budget = max_iterations - iterations = 1 - 1 = 0,
@@ -89,8 +89,10 @@ def test_pollard_brent_exhaustion() -> None:
         iterations_used=1,
         factor=None,
     )
-    with patch("factorise.core.execute_brent_pollard_cycle",
-               return_value=failed_attempt):
+    with patch(
+            "factorise.core.execute_brent_pollard_cycle",
+            return_value=failed_attempt,
+    ):
         with pytest.raises(Exception) as excinfo:
             pollard_brent(n_large, config)
         assert "failed" in str(excinfo.value)

@@ -3,39 +3,56 @@
 Provides the `factorise` orchestration function, which coordinates deterministic
 Miller-Rabin primality testing and Brent's variant of Pollard's Rho algorithm
 to find prime factors.
-
-The module exports `FactorisationResult` and `FactoriserConfig` to ensure
-type-safe, explicit configuration and results without global state.
 """
 
 import dataclasses
 import enum
 import math
-import os
 import random
 from collections import Counter
 from collections.abc import Generator
 
 from loguru import logger
 
+from factorise.config import FactoriserConfig
+
 __all__ = [
-    "ensure_integer_input",
     "FactorisationError",
     "FactorisationResult",
     "PerfectPowerResult",
-    "FactoriserConfig",
-    "is_prime",
+    "ensure_integer_input",
+    "factorise",
     "find_perfect_power",
     "has_carmichael_property",
-    "factorise",
+    "is_prime",
 ]
 
 # Deterministic witnesses for n < 2^64 (12 bases).
-DETERMINISTIC_WITNESSES: tuple[int, ...] = (2, 3, 5, 7, 11, 13, 17, 19, 23, 29,
-                                            31, 37)
+DETERMINISTIC_WITNESSES: tuple[int, ...] = (
+    2,
+    3,
+    5,
+    7,
+    11,
+    13,
+    17,
+    19,
+    23,
+    29,
+    31,
+    37,
+)
 # Reduced witness set for n < 10^12 (6 bases, sufficient per Jaeschke 1993).
 SMALL_INPUT_WITNESSES: tuple[int, ...] = (2, 3, 5, 7, 11, 13)
 DETERMINISTIC_WITNESSES_SET: frozenset[int] = frozenset(DETERMINISTIC_WITNESSES)
+
+# Bit-length threshold for using SMALL_INPUT_WITNESSES vs DETERMINISTIC_WITNESSES.
+SMALL_INPUT_BIT_BOUND: int = 40
+
+# Validation bound for general integer checks.
+INT_MIN_VALID: int = 2
+
+# Small primes used for trial division fast-path in Pollard-Brent.
 SMALL_PRIMES_FOR_TRIAL_DIVISION: tuple[int, ...] = (
     2,
     3,
@@ -1103,7 +1120,7 @@ EXTENDED_SMALL_PRIMES: tuple[int, ...] = (
 logger.disable("factorise")
 
 # ---------------------------------------------------------------------------
-# Result type — the single, explicit return value of factorise().
+# Result types
 # ---------------------------------------------------------------------------
 
 
@@ -1121,6 +1138,7 @@ class FactorisationResult:
         factors: Unique sorted prime factors, e.g. [2, 3].
         powers: Maps each prime to its exponent, e.g. {2: 2, 3: 1}.
         is_prime: True if the original number is prime.
+
     """
 
     original: int
@@ -1146,6 +1164,7 @@ class PerfectPowerResult:
     Attributes:
         base: The integer base (e.g. 5 in 5^3).
         exponent: The exponent (>= 2).
+
     """
 
     base: int
@@ -1153,68 +1172,7 @@ class PerfectPowerResult:
 
 
 # ---------------------------------------------------------------------------
-# Configuration — no global state; callers own their config.
-# ---------------------------------------------------------------------------
-
-
-@dataclasses.dataclass(frozen=True)
-class FactoriserConfig:
-    """Algorithm parameters for factorisation.
-
-    All values default to a reasonable production setting and can be
-    overridden via environment variables or by passing an instance directly.
-
-    Attributes:
-        batch_size: GCD operations to batch per iteration (throughput knob).
-        max_iterations: Hard cap on inner steps per Pollard-Brent attempt.
-        max_retries: How many fresh random seeds to try before giving up.
-        seed: Optional deterministic seed base for reproducible retries.
-        use_pipeline: If True, use the multi-stage pipeline instead of direct
-            Pollard-Brent. Defaults to False for backward compatibility.
-    """
-
-    batch_size: int = 128
-    max_iterations: int = 10_000_000
-    max_retries: int = 20
-    seed: int | None = None
-    use_pipeline: bool = False
-
-    def __post_init__(self) -> None:
-        """Validate fields immediately — fail fast at construction time."""
-        if self.batch_size < 1 or self.batch_size > 10_000:
-            raise ValueError(
-                f"batch_size must be >= 1 and <= 10_000, got {self.batch_size}")
-        if self.max_iterations < 1 or self.max_iterations > 100_000_000:
-            raise ValueError(
-                f"max_iterations must be >= 1 and <= 100_000_000, got {self.max_iterations}"
-            )
-        if self.max_retries < 1 or self.max_retries > 100:
-            raise ValueError(
-                f"max_retries must be >= 1 and <= 100, got {self.max_retries}")
-
-    @classmethod
-    def from_env(cls) -> "FactoriserConfig":
-        """Build a config from FACTORISE_* environment variables.
-
-        Falls back to the dataclass defaults when variables are absent.
-
-        Raises:
-            ValueError: If any environment variable holds an invalid value.
-        """
-        seed = os.getenv("FACTORISE_SEED")
-        return cls(
-            batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
-            max_iterations=int(os.getenv("FACTORISE_MAX_ITERATIONS",
-                                         "10000000")),
-            max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
-            seed=int(seed) if seed is not None else None,
-            use_pipeline=os.getenv("FACTORISE_USE_PIPELINE", "").lower()
-            in ("1", "true", "yes"),
-        )
-
-
-# ---------------------------------------------------------------------------
-# Input validation — one place, one responsibility.
+# Input validation
 # ---------------------------------------------------------------------------
 
 
@@ -1227,14 +1185,15 @@ def ensure_integer_input(value: object, name: str = "n") -> None:
 
     Raises:
         TypeError: If *value* is not a plain int, or is a bool.
+
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(
-            f"{name} must be a plain int, got {type(value).__name__!r}")
+            f"{name} must be a plain int, got {type(value).__name__!r}",)
 
 
 # ---------------------------------------------------------------------------
-# Primality testing — stateless, no configuration required.
+# Primality testing
 # ---------------------------------------------------------------------------
 
 
@@ -1252,6 +1211,7 @@ def is_prime(n: int) -> bool:
 
     Raises:
         TypeError: If n is not a plain int.
+
     """
     ensure_integer_input(n)
 
@@ -1266,7 +1226,8 @@ def is_prime(n: int) -> bool:
     s = (m & -m).bit_length() - 1
     d = m >> s
 
-    witnesses = SMALL_INPUT_WITNESSES if n < 10**12 else DETERMINISTIC_WITNESSES
+    witnesses = (SMALL_INPUT_WITNESSES if n.bit_length()
+                 <= SMALL_INPUT_BIT_BOUND else DETERMINISTIC_WITNESSES)
     for a in witnesses:
         x = pow(a, d, n)
         if x in (1, n - 1):
@@ -1288,24 +1249,25 @@ def is_prime(n: int) -> bool:
 def find_perfect_power(n: int) -> PerfectPowerResult | None:
     """Detect whether *n* is a perfect power (base**exp with exp >= 2).
 
-    Checks exponents from log2(n) down to 2, using integer root computation
-    with roundoff safety (nearby-base check).
+    Checks exponents from a fixed upper bound down to 2, using integer root
+    computation with roundoff safety (nearby-base check).
 
     Args:
         n: A positive integer >= 2.
 
     Returns:
         PerfectPowerResult(base, exponent) if *n* is a perfect power, else None.
+
     """
-    if n < 2:
+    if n < INT_MIN_VALID:
         return None
-    max_exp = n.bit_length()
+    max_exp = min(n.bit_length(), 64)
     for exp in range(max_exp, 1, -1):
         root = round(n**(1.0 / exp))
-        if root < 2:
+        if root < INT_MIN_VALID:
             continue
         for candidate in (root - 1, root, root + 1):
-            if candidate >= 2 and candidate**exp == n:
+            if candidate >= INT_MIN_VALID and candidate**exp == n:
                 return PerfectPowerResult(base=candidate, exponent=exp)
     return None
 
@@ -1323,8 +1285,9 @@ def has_carmichael_property(n: int) -> bool:
 
     Returns:
         True if *n* satisfies the Carmichael condition, False otherwise.
+
     """
-    if n < 2 or n % 2 == 0:
+    if n < INT_MIN_VALID or n % 2 == 0:
         return False
     temp = n
     p = 2
@@ -1347,7 +1310,7 @@ def has_carmichael_property(n: int) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Factorisation — Pollard-Brent, expressed as three focused functions.
+# Pollard-Brent factorisation
 # ---------------------------------------------------------------------------
 
 
@@ -1366,9 +1329,10 @@ class BrentPollardCycleResult:
         outcome: The termination reason for the cycle.
         iterations_used: Number of iterations consumed before termination.
         factor: A non-trivial factor if one was found, otherwise None.
+
     """
 
-    __slots__ = ("outcome", "iterations_used", "factor")
+    __slots__ = ("factor", "iterations_used", "outcome")
 
     def __init__(
         self,
@@ -1382,16 +1346,16 @@ class BrentPollardCycleResult:
             outcome: The termination reason for the cycle.
             iterations_used: Number of iterations consumed before termination.
             factor: A non-trivial factor if one was found.
+
         """
         self.outcome = outcome
         self.iterations_used = iterations_used
         self.factor = factor
 
     def __repr__(self) -> str:
-        return (
-            f"BrentPollardCycleResult(outcome={self.outcome!r}, "
-            f"iterations_used={self.iterations_used!r}, factor={self.factor!r})"
-        )
+        return (f"BrentPollardCycleResult(outcome={self.outcome!r}, "
+                f"iterations_used={self.iterations_used!r}, "
+                f"factor={self.factor!r})")
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BrentPollardCycleResult):
@@ -1399,6 +1363,9 @@ class BrentPollardCycleResult:
         return (self.outcome == other.outcome and
                 self.iterations_used == other.iterations_used and
                 self.factor == other.factor)
+
+    def __hash__(self) -> int:
+        return hash((self.outcome, self.iterations_used, self.factor))
 
 
 def execute_brent_pollard_cycle(
@@ -1422,15 +1389,17 @@ def execute_brent_pollard_cycle(
 
     Returns:
         A BrentPollardCycleResult containing the outcome and iterations used.
+
     """
     ensure_integer_input(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}",)
 
     g, r, q = 1, 1, 1
     x, ys = 0, 0
     iterations = 0
+    y_history: list[int] = []
 
     while g == 1:
         x = y
@@ -1450,10 +1419,11 @@ def execute_brent_pollard_cycle(
                     limit=max_iterations,
                 )
                 return BrentPollardCycleResult(
-                    PollardBrentOutcome.ITERATION_CAP_HIT, iterations)
+                    PollardBrentOutcome.ITERATION_CAP_HIT,
+                    iterations,
+                )
 
-            # Cache y-values during batch for O(1) backtrack recovery.
-            y_history: list[int] = []
+            y_history = []
             checkpoint = max(1, batch_limit // 4)
             for i in range(batch_limit):
                 y = (y * y + c) % n
@@ -1464,25 +1434,28 @@ def execute_brent_pollard_cycle(
                     if g > 1:
                         iterations += i + 1
                         return BrentPollardCycleResult(
-                            PollardBrentOutcome.SUCCESS, iterations, g)
+                            PollardBrentOutcome.SUCCESS,
+                            iterations,
+                            g,
+                        )
 
             iterations += batch_limit
             g = math.gcd(q, n)
             k += config.batch_size
         r *= 2
 
-    # The cycle collapsed into g == n — step back one at a time to recover.
     if g == n:
         backtrack_budget = max_iterations - iterations
         if backtrack_budget <= 0:
             return BrentPollardCycleResult(
-                PollardBrentOutcome.ITERATION_CAP_HIT, iterations)
+                PollardBrentOutcome.ITERATION_CAP_HIT,
+                iterations,
+            )
         for y_val in y_history:
             g = math.gcd(abs(x - y_val), n)
             if g > 1:
                 break
         else:
-            # y_history exhausted without finding factor — continue stepping.
             for _ in range(backtrack_budget - len(y_history)):
                 ys = (ys * ys + c) % n
                 iterations += 1
@@ -1492,17 +1465,26 @@ def execute_brent_pollard_cycle(
             else:
                 logger.warning("backtrack cap n={n}", n=n)
                 return BrentPollardCycleResult(
-                    PollardBrentOutcome.ALGORITHM_FAILURE, iterations)
+                    PollardBrentOutcome.ALGORITHM_FAILURE,
+                    iterations,
+                )
 
     if 1 < g < n:
-        return BrentPollardCycleResult(PollardBrentOutcome.SUCCESS, iterations,
-                                       g)
-    return BrentPollardCycleResult(PollardBrentOutcome.ALGORITHM_FAILURE,
-                                   iterations)
+        return BrentPollardCycleResult(
+            PollardBrentOutcome.SUCCESS,
+            iterations,
+            g,
+        )
+    return BrentPollardCycleResult(
+        PollardBrentOutcome.ALGORITHM_FAILURE,
+        iterations,
+    )
 
 
-def find_nontrivial_factor_pollard_brent(n: int,
-                                         config: FactoriserConfig) -> int:
+def find_nontrivial_factor_pollard_brent(
+    n: int,
+    config: FactoriserConfig,
+) -> int:
     """Find a non-trivial factor of n, retrying with fresh seeds as needed.
 
     Args:
@@ -1510,23 +1492,23 @@ def find_nontrivial_factor_pollard_brent(n: int,
         config: Algorithm parameters controlling retry budget.
 
     Returns:
-        A non-trivial factor. Returns n itself when n is prime.
+        A non-trivial factor of n.
 
     Raises:
-        FactorisationError: If no factor is found within config.max_retries attempts.
+        FactorisationError: If n is prime or if no factor is found within the
+            configured retry budget.
+
     """
     ensure_integer_input(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}",)
 
-    # Trial division fast-path for tiny primes
-    # (Fixes Pollard's Rho cycle exhaustion on tiny fields like n=15, 35)
     for p in SMALL_PRIMES_FOR_TRIAL_DIVISION:
         if n % p == 0:
             return p
     if is_prime(n):
-        return n
+        raise FactorisationError(f"n={n} is prime; no nontrivial factor exists")
 
     root = math.isqrt(n)
     if root * root == n:
@@ -1547,14 +1529,19 @@ def find_nontrivial_factor_pollard_brent(n: int,
             c=c,
         )
 
-        result = execute_brent_pollard_cycle(n, y, c, config,
-                                             remaining_iterations)
+        result = execute_brent_pollard_cycle(
+            n,
+            y,
+            c,
+            config,
+            remaining_iterations,
+        )
         remaining_iterations -= result.iterations_used
 
         if result.outcome == PollardBrentOutcome.SUCCESS:
             if result.factor is None:
                 raise FactorisationError(
-                    "execute_brent_pollard_cycle returned SUCCESS without a factor; this is a bug."
+                    "execute_brent_pollard_cycle returned SUCCESS without a factor",
                 )
             logger.debug("factor={factor} n={n}", factor=result.factor, n=n)
             return result.factor
@@ -1565,13 +1552,20 @@ def find_nontrivial_factor_pollard_brent(n: int,
             break
 
     raise FactorisationError(
-        f"find_nontrivial_factor_pollard_brent failed for n={n} after {attempt} attempts. "
-        "Increase max_retries or max_iterations in FactoriserConfig.")
+        f"find_nontrivial_factor_pollard_brent failed for n={n} "
+        f"after {attempt} attempts. Increase max_retries or max_iterations.",)
+
+
+# ---------------------------------------------------------------------------
+# Recursive factorisation
+# ---------------------------------------------------------------------------
 
 
 def yield_prime_factors_recursive(
-        n: int, config: FactoriserConfig) -> Generator[int, None, None]:
-    """Iteratively yield prime factors of n using an explicit stack.
+    n: int,
+    config: FactoriserConfig,
+) -> Generator[int, None, None]:
+    """Yield prime factors of n using an explicit stack.
 
     Uses O(log n) stack space (worst case) but avoids call-stack overhead.
 
@@ -1581,6 +1575,7 @@ def yield_prime_factors_recursive(
 
     Yields:
         Prime factors of n, possibly repeated.
+
     """
     stack: list[int] = [n]
     while stack:
@@ -1597,98 +1592,27 @@ def yield_prime_factors_recursive(
         stack.append(current // d)
 
 
-def yield_prime_factors_via_pipeline(
-        n: int, config: FactoriserConfig) -> Generator[int, None, None]:
-    """Iteratively yield prime factors of n using the multi-stage pipeline.
-
-    This function is used when config.use_pipeline is True. It uses the
-    FactorisationPipeline to find non-trivial factors, feeding each composite
-    part back into the pipeline until all remaining values are prime.
-
-    Args:
-        n: The integer to factorise.
-        config: Factorisation configuration (retries, iterations, seed).
-
-    Yields:
-        Prime factors of n, possibly repeated.
-    """
-    from factorise.pipeline import FactorisationPipeline
-    from factorise.pipeline import PipelineConfig
-
-    pipeline_config = PipelineConfig(
-        max_iterations=config.max_iterations,
-        max_retries=config.max_retries,
-        batch_size=config.batch_size,
-        seed=config.seed,
-    )
-    pipeline = FactorisationPipeline(pipeline_config)
-
-    stack: list[int] = [n]
-    while stack:
-        current = stack.pop()
-        if current < 2:
-            continue
-        if is_prime(current):
-            yield current
-            continue
-
-        # Ask the pipeline for one factor.
-        result = pipeline.attempt(current, config=config)
-        if result.was_successful() and result.factor is not None:
-            d = result.factor
-            logger.debug(
-                "pipeline split n={n} d={d}",
-                n=current,
-                d=d,
-            )
-            stack.append(d)
-            stack.append(current // d)
-        elif result.was_failed():
-            # Pipeline failed for this composite part; fall back to direct Pollard-Brent
-            # which may succeed with different parameters than the pipeline uses.
-            logger.warning(
-                "pipeline failed for n={n}, falling back to find_nontrivial_factor_pollard_brent",
-                n=current,
-            )
-            try:
-                d = find_nontrivial_factor_pollard_brent(current, config)
-                stack.append(d)
-                stack.append(current // d)
-            except FactorisationError:  # noqa: B904
-                # If even Pollard-Brent fails, re-raise as FactorisationError
-                # since the number cannot be factored with the available methods.
-                raise FactorisationError(  # noqa: B904
-                    f"All stages failed for n={current}; "
-                    "input may be prime or require GNFS") from None
-        else:
-            # SKIPPED — shouldn't happen for composite inputs
-            raise FactorisationError(
-                f"Pipeline returned unexpected status {result.outcome()} for composite n={current}"
-            )
-
-
 def collect_prime_factors(n: int, config: FactoriserConfig) -> list[int]:
     """Recursively split n until every part is prime.
 
     Args:
         n: A positive integer.
-        config: Algorithm parameters forwarded to pollard_brent or the pipeline.
+        config: Algorithm parameters forwarded to pollard_brent.
 
     Returns:
         A flat list of prime factors (unsorted, with repetition).
         Returns [] for n < 2.
+
     """
     ensure_integer_input(n)
     if not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
-    if config.use_pipeline:
-        return list(yield_prime_factors_via_pipeline(n, config))
+            f"config must be FactoriserConfig, got {type(config).__name__!r}",)
     return list(yield_prime_factors_recursive(n, config))
 
 
 # ---------------------------------------------------------------------------
-# Public API — the single entry point callers interact with.
+# Public API
 # ---------------------------------------------------------------------------
 
 
@@ -1701,8 +1625,7 @@ def factorise(
     Args:
         n: The integer to factorise.
         config: Algorithm parameters. When omitted, reads from environment
-                variables via FactoriserConfig.from_env().
-                Set config.use_pipeline = True to use the multi-stage pipeline.
+            variables via FactoriserConfig.from_env().
 
     Returns:
         A FactorisationResult containing the complete decomposition.
@@ -1710,30 +1633,35 @@ def factorise(
     Raises:
         TypeError: If n is not a plain int.
         FactorisationError: If factorisation exhausts its retry budget.
+
     """
     ensure_integer_input(n)
     if config is not None and not isinstance(config, FactoriserConfig):
         raise TypeError(
-            f"config must be FactoriserConfig, got {type(config).__name__!r}")
+            f"config must be FactoriserConfig, got {type(config).__name__!r}",)
     cfg = config if config is not None else FactoriserConfig.from_env()
     logger.info("factorise start n={n}", n=n)
 
     if n == 0:
-        return FactorisationResult(original=0,
-                                   sign=1,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(
+            original=0,
+            sign=1,
+            factors=[],
+            powers={},
+            is_prime=False,
+        )
 
     sign = -1 if n < 0 else 1
     abs_n = abs(n)
 
     if abs_n == 1:
-        return FactorisationResult(original=n,
-                                   sign=sign,
-                                   factors=[],
-                                   powers={},
-                                   is_prime=False)
+        return FactorisationResult(
+            original=n,
+            sign=sign,
+            factors=[],
+            powers={},
+            is_prime=False,
+        )
 
     raw_factors = collect_prime_factors(abs_n, cfg)
     counts = Counter(raw_factors)
@@ -1747,7 +1675,9 @@ def factorise(
         is_prime=(len(factors) == 1 and sum(powers.values()) == 1 and n > 1),
     )
 
-    logger.info("factorise complete n={n} factors={factors}",
-                n=n,
-                factors=factors)
+    logger.info(
+        "factorise complete n={n} factors={factors}",
+        n=n,
+        factors=factors,
+    )
     return result

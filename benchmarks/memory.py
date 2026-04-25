@@ -23,7 +23,7 @@ from benchmarks.inputs import IS_PRIME_LARGE
 from benchmarks.inputs import IS_PRIME_MEDIUM
 from benchmarks.inputs import IS_PRIME_SMALL
 from benchmarks.inputs import SCALABILITY_INPUTS
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 from factorise.core import is_prime
 

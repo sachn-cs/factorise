@@ -1,31 +1,48 @@
-"""Shared routines for quadratic sieve-based stages."""
+"""Shared routines for quadratic sieve-based stages.
+
+Provides prime testing, smoothness checking, linear algebra over GF(2),
+and factor extraction used by QuadraticSieveStage and SIQSStage.
+"""
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 
 def is_small_prime(candidate: int) -> bool:
-    """Test whether a small integer is prime."""
+    """Test whether a small integer is prime by trial division.
+
+    Args:
+        candidate: The integer to test.
+
+    Returns:
+        True if candidate is prime, False otherwise.
+
+    """
     if candidate < 2:
         return False
     if candidate % 2 == 0:
         return candidate == 2
     limit = int(candidate**0.5) + 1
-    for divisor in range(3, limit, 2):
-        if candidate % divisor == 0:
-            return False
-    return True
+    return all(candidate % divisor != 0 for divisor in range(3, limit, 2))
 
 
-def factor_over_base(
-    value: int,
-    prime_base: list[int],
-) -> list[int] | None:
-    """Factor a value over the given prime base.
+def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
+    """Decompose value completely over the given prime base.
 
-    Returns a list of exponents (one per prime in the base), or None if the
-    value has a prime factor outside the base.
+    The first element of the prime base is treated as -1 (sign handling).
+    Returns a list of exponents, one per prime in the base, if the value
+    factors completely; otherwise returns None.
+
+    Args:
+        value: The integer to factor.
+        prime_base: A list of primes where the first element is -1.
+
+    Returns:
+        A list of exponents indexed parallel to prime_base, or None if
+        value has a prime factor outside the base.
+
     """
     exponents = [0] * len(prime_base)
     remaining = value
@@ -62,10 +79,20 @@ def find_dependency(
     relations: list[dict[str, Any]],
     num_primes: int,
 ) -> list[int] | None:
-    """Find a linear dependency among relations using Gaussian elimination.
+    """Find a linear dependency among relations using Gaussian elimination over GF(2).
 
-    Filters out trivial relations (all even exponents) before elimination,
-    since they produce x ≡ y (mod n) and never yield a non-trivial factor.
+    Trivial relations (all even exponents) are filtered out before elimination
+    because they produce x == y (mod n) and never yield a non-trivial factor.
+
+    Args:
+        relations: A list of relation dictionaries, each containing an
+            "exponents" key mapping to a list of integer exponents.
+        num_primes: The size of the prime base.
+
+    Returns:
+        A binary indicator vector showing which relations participate in the
+        dependency, or None if no dependency is found.
+
     """
     non_trivial = [
         rel for rel in relations
@@ -124,8 +151,19 @@ def extract_factor(
 ) -> int | None:
     """Extract a non-trivial factor from a dependency.
 
-    Computes x = product of a_i and y = product of p_j^(e_j/2),
-    then returns gcd(x ± y, n) if it yields a non-trivial factor.
+    Computes x = product(a_i) and y = product(p_j^(e_j/2)) over the
+    selected relations, then returns gcd(x +/- y, n) if non-trivial.
+
+    Args:
+        n: The composite integer being factored.
+        relations: A list of relation dictionaries containing "a" and
+            "exponents" keys.
+        dependency: A binary vector indicating which relations to combine.
+        prime_base: The prime base used for factorization.
+
+    Returns:
+        A non-trivial factor of n if one is found, otherwise None.
+
     """
     product_x = 1
     product_y = 1
@@ -141,7 +179,6 @@ def extract_factor(
                 continue
             product_y = (product_y * pow(prime, exp // 2, n)) % n
 
-    import math
     candidate = math.gcd(product_x - product_y, n)
     if 1 < candidate < n:
         return candidate

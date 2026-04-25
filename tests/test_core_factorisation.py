@@ -7,7 +7,7 @@ from typing import cast
 
 import pytest
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 from factorise.core import is_prime
 from tests.conftest import DEFAULT_CONFIG

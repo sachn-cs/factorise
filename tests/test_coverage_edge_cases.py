@@ -5,9 +5,9 @@ from unittest.mock import patch
 import pytest
 
 from factorise.cli import app
+from factorise.config import FactoriserConfig
 from factorise.core import BrentPollardCycleResult as AttemptResult
 from factorise.core import FactorisationError
-from factorise.core import FactoriserConfig
 from factorise.core import PollardBrentOutcome as AttemptStatus
 from factorise.core import ensure_integer_input
 from factorise.core import execute_brent_pollard_cycle as pollard_brent_attempt
@@ -65,8 +65,10 @@ def test_pollard_brent_backtrack_failure() -> None:
     # algorithm tracks remaining budget and exits before exhausting backtrack.
     result = pollard_brent_attempt(n, 2, 1, config, max_iterations=1)
     # With our setup, we get ITERATION_CAP_HIT (iteration cap hit before backtrack)
-    assert result.outcome in (AttemptStatus.ITERATION_CAP_HIT,
-                              AttemptStatus.ALGORITHM_FAILURE)
+    assert result.outcome in (
+        AttemptStatus.ITERATION_CAP_HIT,
+        AttemptStatus.ALGORITHM_FAILURE,
+    )
 
 
 def test_pollard_brent_success_without_factor_bug() -> None:

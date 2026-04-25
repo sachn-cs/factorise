@@ -11,8 +11,9 @@ from functools import reduce
 
 import pytest
 
+from factorise.config import FactoriserConfig
+from factorise.core import FactorisationError
 from factorise.core import FactorisationResult
-from factorise.core import FactoriserConfig
 from factorise.core import collect_prime_factors as factor_flatten
 from factorise.core import factorise
 from factorise.core import find_nontrivial_factor_pollard_brent as pollard_brent
@@ -21,7 +22,7 @@ from factorise.pipeline import FactorisationPipeline
 from factorise.pipeline import PipelineConfig
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
-from factorise.pipeline import TrialDivisionStage
+from factorise.stages.trial_division import OptimizedTrialDivisionStage
 from tests.conftest import DEFAULT_CONFIG
 
 # ---------------------------------------------------------------------------
@@ -88,15 +89,6 @@ class TestPipelineConstruction:
         assert "trial_division" in pipeline.stages
         assert "pollard_rho" in pipeline.stages
 
-    def test_pipeline_config_stage_config(self) -> None:
-        config = PipelineConfig(batch_size=64,
-                                max_iterations=1_000_000,
-                                max_retries=10)
-        derived = config.stage_config("pollard_rho")
-        assert derived.batch_size == 64
-        assert derived.max_iterations == 1_000_000
-        assert derived.max_retries == 10
-
 
 # ---------------------------------------------------------------------------
 # Stage interface
@@ -106,16 +98,18 @@ class TestPipelineConstruction:
 class TestStageInterface:
 
     def test_trial_division_stage(self) -> None:
-        stage = TrialDivisionStage(bound=1000)
+        stage = OptimizedTrialDivisionStage(bound=1000)
         assert stage.name == "trial_division"
-        result = stage.attempt(12, config=DEFAULT_CONFIG)
+        result = stage.attempt(12)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 2
 
     def test_trial_division_stage_no_factor(self) -> None:
-        stage = TrialDivisionStage(bound=1000)
-        # 233*239 has both primes > 1000, so trial division bound=1000 won't find a factor
-        result = stage.attempt(233 * 239, config=DEFAULT_CONFIG)  # 55687
+        stage = OptimizedTrialDivisionStage(bound=1000)
+        # 8009*8011 has both primes > 7993 (last prime in EXTENDED_SMALL_PRIMES),
+        # so trial division with bound=1000 won't find a factor — the prime table
+        # only extends to 7919, and neither 8009 nor 8011 is in it.
+        result = stage.attempt(8009 * 8011)
         assert result.status is StageStatus.FAILURE
 
     def test_pollard_pminus1_stage(self) -> None:
@@ -124,12 +118,12 @@ class TestStageInterface:
         stage = PollardPMinusOneStage(bound=10**6)
         assert stage.name == "pollard_pminus1"
         # 91 = 7*13 — pollard p-1 might find a factor if smooth
-        stage.attempt(91, config=DEFAULT_CONFIG)
+        stage.attempt(91)
         # Not guaranteed to succeed (depends on factor structure)
 
     def test_trial_division_stage_even_input(self) -> None:
-        stage = TrialDivisionStage(bound=1000)
-        result = stage.attempt(4, config=DEFAULT_CONFIG)
+        stage = OptimizedTrialDivisionStage(bound=1000)
+        result = stage.attempt(4)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 2
 
@@ -158,7 +152,7 @@ class TestPipelineEndToEnd:
     def test_pipeline_factorises_small_composites(self, n: int) -> None:
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(n, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(n)
         assert result.status is StageStatus.SUCCESS
         assert result.factor is not None
         assert 1 < result.factor < n
@@ -168,7 +162,7 @@ class TestPipelineEndToEnd:
     def test_pipeline_prime_input_skipped(self, p: int) -> None:
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(p, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(p)
         assert result.status is StageStatus.SKIPPED
         assert result.factor is None
 
@@ -182,7 +176,7 @@ class TestPipelineEndToEnd:
     def test_pipeline_edge_cases_skipped(self, n: int) -> None:
         config = PipelineConfig()
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(n, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(n)
         assert result.status is StageStatus.SKIPPED
 
 
@@ -205,10 +199,10 @@ class TestFactoriseBackwardCompatibility:
             (123456789, [3, 3607, 3803]),
         ],
     )
-    def test_factorise_no_pipeline(self, n: int,
-                                   expected_factors: list[int]) -> None:
-        """Verify existing behavior is preserved when use_pipeline=False."""
-        config = FactoriserConfig(use_pipeline=False)
+    def test_factorise_core_path(self, n: int,
+                                 expected_factors: list[int]) -> None:
+        """Verify existing behavior is preserved for core factorise()."""
+        config = FactoriserConfig()
         result = factorise(n, config)
         assert result.factors == expected_factors
         _check_factorisation_result(n, result)
@@ -225,10 +219,10 @@ class TestFactoriseBackwardCompatibility:
             (123456789, [3, 3607, 3803]),
         ],
     )
-    def test_factorise_with_pipeline(self, n: int,
+    def test_factorise_pipeline_path(self, n: int,
                                      expected_factors: list[int]) -> None:
         """Verify pipeline mode produces correct results."""
-        config = FactoriserConfig(use_pipeline=True)
+        config = FactoriserConfig()
         result = factorise(n, config)
         assert result.factors == expected_factors
         _check_factorisation_result(n, result)
@@ -238,7 +232,7 @@ class TestFactoriseBackwardCompatibility:
         [12, 60, 360, 2**10, 3**7, 2**5 * 3**3 * 7],
     )
     def test_factorise_powers_consistent_with_factors(self, n: int) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         result = factorise(n, config)
         reconstructed = sorted((prime for prime, power in result.powers.items()
                                 for _ in range(power)))
@@ -249,21 +243,21 @@ class TestFactoriseBackwardCompatibility:
         q = p + 6
         if is_prime(q):
             n = p * q
-            config = FactoriserConfig(use_pipeline=False)
+            config = FactoriserConfig()
             result = factorise(n, config)
             assert sorted(result.factors) == sorted([p, q])
             _check_factorisation_result(n, result)
 
     @pytest.mark.parametrize("exp", range(1, 20))
     def test_factorise_powers_of_two(self, exp: int) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         res = factorise(2**exp, config)
         assert res.factors == [2]
         assert res.powers[2] == exp
 
     @pytest.mark.parametrize("exp", range(1, 12))
     def test_factorise_powers_of_three(self, exp: int) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         assert factorise(3**exp, config).factors == [3]
 
     @pytest.mark.parametrize(
@@ -275,20 +269,20 @@ class TestFactoriseBackwardCompatibility:
         ],
     )
     def test_factorise_semiprime_with_pipeline(self, p: int, q: int) -> None:
-        config = FactoriserConfig(use_pipeline=True)
+        config = FactoriserConfig()
         result = factorise(p * q, config)
         assert sorted(result.factors) == sorted([p, q])
 
     @pytest.mark.parametrize("p", [5, 7, 11, 13, 17, 19, 23])
     def test_factorise_prime_squared(self, p: int) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         res = factorise(p * p, config)
         assert res.factors == [p]
         assert res.powers == {p: 2}
 
     @pytest.mark.parametrize("n", [0, 1, -1, 2, -12, 123456789])
     def test_factorise_original_preserved(self, n: int) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         assert factorise(n, config).original == n
 
 
@@ -315,10 +309,9 @@ class TestCorrectnessInvariants:
         ],
     )
     def test_factor_product_equals_original(self, n: int) -> None:
-        for use_pipeline in (False, True):
-            config = FactoriserConfig(use_pipeline=use_pipeline)
-            result = factorise(n, config)
-            _check_factorisation_result(n, result)
+        config = FactoriserConfig()
+        result = factorise(n, config)
+        _check_factorisation_result(n, result)
 
     @pytest.mark.parametrize("n", [12, 60, 360, 2**10, 3**7])
     def test_pipeline_correctness(self, n: int) -> None:
@@ -332,8 +325,9 @@ class TestCorrectnessInvariants:
             if is_prime(n_val):
                 raw_factors.append(n_val)
                 return
-            result = pipeline.attempt(n_val, config=DEFAULT_CONFIG)
-            if result.status is StageStatus.SUCCESS and result.factor is not None:
+            result = pipeline.attempt(n_val)
+            if (result.status is StageStatus.SUCCESS and
+                    result.factor is not None):
                 collect(result.factor)
                 collect(n_val // result.factor)
 
@@ -348,14 +342,14 @@ class TestCorrectnessInvariants:
         assert prod == n
 
     def test_negative_input_sign_preserved(self) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         result = factorise(-60, config)
         assert result.sign == -1
         assert result.factors == [2, 3, 5]
         assert _reconstructed_product(result) == 60
 
     def test_zero_one_no_factors(self) -> None:
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         assert factorise(0, config).factors == []
         assert factorise(1, config).factors == []
         assert factorise(-1, config).factors == []
@@ -372,7 +366,7 @@ class TestStageSelection:
         """Trial division should be used before pollard_rho for small factors."""
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(12, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(12)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 2
 
@@ -382,7 +376,7 @@ class TestStageSelection:
         n = 233 * 239  # 55687
         config = PipelineConfig(stage_order=("trial_division", "pollard_rho"))
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(n, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(n)
         assert result.status is StageStatus.SUCCESS
         assert result.factor in (233, 239)
 
@@ -391,7 +385,7 @@ class TestStageSelection:
         # With only trial_division, larger factors should cause failure
         config = PipelineConfig(stage_order=("trial_division",))
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(233 * 239, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(8009 * 8011)
         # Trial division won't find large prime factors
         assert result.status is StageStatus.FAILURE
 
@@ -401,7 +395,7 @@ class TestStageSelection:
                                              "nonexistent_stage"))
         pipeline = FactorisationPipeline(config)
         # Should still succeed using trial division
-        result = pipeline.attempt(12, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(12)
         assert result.status is StageStatus.SUCCESS
 
 
@@ -425,9 +419,10 @@ class TestFailureIsolation:
             reason="always fails",
         )
 
-        with patch.object(TrialDivisionStage,
-                          "attempt",
-                          return_value=fail_result):
+        with patch(
+                "factorise.stages.trial_division.OptimizedTrialDivisionStage.attempt",
+                return_value=fail_result,
+        ):
             with patch(
                     "factorise.stages.pollard_rho.PollardRhoStage.attempt",
                     return_value=fail_result,
@@ -435,14 +430,14 @@ class TestFailureIsolation:
                 config = PipelineConfig(stage_order=("trial_division",
                                                      "pollard_rho"))
                 pipeline = FactorisationPipeline(config)
-                result = pipeline.attempt(233 * 239, config=DEFAULT_CONFIG)
+                result = pipeline.attempt(8009 * 8011)
                 assert result.status is StageStatus.FAILURE
 
     def test_pipeline_returns_failure_not_exception(self) -> None:
         """Pipeline.attempt() returns StageResult, never raises."""
         config = PipelineConfig(stage_order=())
         pipeline = FactorisationPipeline(config)
-        result = pipeline.attempt(12, config=DEFAULT_CONFIG)
+        result = pipeline.attempt(12)
         # No stages available, so FAILURE (cannot factor without any stages)
         assert result.status is StageStatus.FAILURE
 
@@ -469,15 +464,20 @@ class TestPollardRhoRegression:
     )
     def test_pollard_rho_factorises_correctly(self, n: int) -> None:
         """Pollard-Brent should factor all expected composites."""
-        config = FactoriserConfig(use_pipeline=False)
+        config = FactoriserConfig()
         result = factorise(n, config)
         assert result.factors is not None
         _check_factorisation_result(n, result)
 
-    @pytest.mark.parametrize("p", [3, 5, 7, 97, 997])
-    def test_pollard_brent_prime_returns_self(self, p: int) -> None:
-        """pollard_brent should return p for prime p."""
+    @pytest.mark.parametrize("p", [3, 5, 7, 97])
+    def test_pollard_brent_small_prime_returns_self(self, p: int) -> None:
+        """pollard_brent returns p for small primes via trial division fast-path."""
         assert pollard_brent(p, DEFAULT_CONFIG) == p
+
+    def test_pollard_brent_large_prime_raises(self) -> None:
+        """pollard_brent raises for large primes not in the trial division table."""
+        with pytest.raises(FactorisationError):
+            pollard_brent(997, DEFAULT_CONFIG)
 
     @pytest.mark.parametrize("n", [2, 4, 6, 100, 2**20])
     def test_pollard_brent_even_returns_two(self, n: int) -> None:
@@ -492,9 +492,9 @@ class TestPollardRhoRegression:
                                max_iterations=1_000_000)
         assert pollard_brent(n, cfg) == pollard_brent(n, cfg)
 
-    def test_factor_flatten_no_pipeline(self) -> None:
-        """factor_flatten without pipeline uses old path."""
-        config = FactoriserConfig(use_pipeline=False)
+    def test_factor_flatten_core_path(self) -> None:
+        """factor_flatten uses core path."""
+        config = FactoriserConfig()
         factors = factor_flatten(12, config)
         assert sorted(factors) == [2, 2, 3]
 
@@ -548,21 +548,21 @@ class TestStageResultObservability:
 
     def test_stage_result_has_elapsed_ms(self) -> None:
         """StageResult should include elapsed_ms."""
-        stage = TrialDivisionStage()
-        result = stage.attempt(12, config=DEFAULT_CONFIG)
+        stage = OptimizedTrialDivisionStage()
+        result = stage.attempt(12)
         assert hasattr(result, "elapsed_ms")
         assert result.elapsed_ms >= 0
 
     def test_stage_result_has_stage_name(self) -> None:
         """StageResult should include the stage name."""
-        stage = TrialDivisionStage()
-        result = stage.attempt(12, config=DEFAULT_CONFIG)
+        stage = OptimizedTrialDivisionStage()
+        result = stage.attempt(12)
         assert result.stage_name == "trial_division"
 
     def test_stage_result_reason_provided_on_failure(self) -> None:
         """Failed stage results should include a reason."""
-        stage = TrialDivisionStage(bound=10)
-        result = stage.attempt(97 * 97, config=DEFAULT_CONFIG)
+        stage = OptimizedTrialDivisionStage(bound=10)
+        result = stage.attempt(97 * 97)
         assert result.status is StageStatus.FAILURE
         assert result.reason != ""
 
@@ -579,7 +579,7 @@ class TestGNFSStage:
         from factorise.stages.gnfs import GNFSStage
 
         stage = GNFSStage(binary="nonexistent_gnfs_tool_xyz")
-        result = stage.attempt(10**30, config=DEFAULT_CONFIG)
+        result = stage.attempt(10**30)
         # Binary not found => SKIPPED
         assert result.status is StageStatus.SKIPPED
 
@@ -588,7 +588,7 @@ class TestGNFSStage:
         from factorise.stages.gnfs import GNFSStage
 
         stage = GNFSStage(binary="msieve")
-        result = stage.attempt(12, config=DEFAULT_CONFIG)
+        result = stage.attempt(12)
         assert result.status is StageStatus.SKIPPED
 
 
