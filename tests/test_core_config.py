@@ -2,8 +2,8 @@
 
 import pytest
 
+from factorise.config import FactoriserConfig
 from factorise.core import FactorisationResult
-from factorise.core import FactoriserConfig
 from factorise.core import ensure_integer_input
 from tests.conftest import DEFAULT_CONFIG
 

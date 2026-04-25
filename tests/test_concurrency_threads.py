@@ -2,7 +2,7 @@
 
 import concurrent.futures
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
 from factorise.core import factorise
 
 # Use a large 92-bit semiprime to stress-test parallel logic (P61 * P31)

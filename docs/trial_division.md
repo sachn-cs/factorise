@@ -18,6 +18,6 @@ The `OptimizedTrialDivisionStage` uses a 30-wheel to skip multiples of 2, 3, and
 from factorise.stages.trial_division import OptimizedTrialDivisionStage
 
 stage = OptimizedTrialDivisionStage(bound=10_000)
-result = stage.attempt(123456, config=FactoriserConfig())
+result = stage.attempt(123456)
 print(result.factor)  # 2
 ```

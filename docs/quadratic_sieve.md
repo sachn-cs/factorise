@@ -1,6 +1,6 @@
 # Quadratic Sieve (QS)
 
-The Quadratic Sieve is a fast factorisation method for medium-to-large composites (up to ~100 digits).
+The Quadratic Sieve is a fast factorisation method for medium-to-large composites (up to ~80 bits).
 
 ## Algorithm Overview
 
@@ -15,7 +15,7 @@ The simplified implementation in `QuadraticSieveStage` is limited to 80-bit inpu
 
 ## When to Use
 
-- Fast for medium-to-large inputs up to ~100 digits.
+- Fast for medium-to-large inputs up to ~80 bits.
 - Educational implementation suitable for learning the algorithm.
 
 ## Implementation
@@ -24,5 +24,6 @@ The simplified implementation in `QuadraticSieveStage` is limited to 80-bit inpu
 from factorise.stages.quadratic_sieve import QuadraticSieveStage
 
 stage = QuadraticSieveStage()
-result = stage.attempt(1234567890123456789, config=FactoriserConfig())
+result = stage.attempt(1234567890123456789)
+print(result.factor)
 ```

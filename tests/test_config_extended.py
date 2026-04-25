@@ -216,7 +216,7 @@ def test_stages_for_threshold_medium() -> None:
     """Verify stage order for bucket 1."""
     cfg = HybridConfig()
     order = cfg.stages_for_threshold(1)
-    assert "pollard_pm1" in order
+    assert "improved_pollard_pminus1" in order
     assert "pollard_rho" in order
     assert "ecm" in order
 
@@ -227,7 +227,7 @@ def test_stages_for_threshold_large() -> None:
     order = cfg.stages_for_threshold(2)
     assert "pollard_rho" in order
     assert "ecm" in order
-    assert "pollard_pm1" in order
+    assert "improved_pollard_pminus1" in order
 
 
 def test_stages_for_threshold_xlarge() -> None:

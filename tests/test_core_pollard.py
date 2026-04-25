@@ -4,7 +4,8 @@ from typing import cast
 
 import pytest
 
-from factorise.core import FactoriserConfig
+from factorise.config import FactoriserConfig
+from factorise.core import FactorisationError
 from factorise.core import collect_prime_factors as factor_flatten
 from factorise.core import find_nontrivial_factor_pollard_brent as pollard_brent
 from tests.conftest import DEFAULT_CONFIG
@@ -27,10 +28,16 @@ def test_pollard_brent_even_returns_two(n: int) -> None:
     assert pollard_brent(n, DEFAULT_CONFIG) == 2
 
 
-@pytest.mark.parametrize("p", [3, 5, 7, 97, 997])
-def test_pollard_brent_prime_returns_self(p: int) -> None:
-    """Verify Pollard-Brent returns the prime itself for prime inputs."""
+@pytest.mark.parametrize("p", [3, 5, 7, 97])
+def test_pollard_brent_small_prime_returns_self(p: int) -> None:
+    """pollard_brent returns p for small primes via trial division fast-path."""
     assert pollard_brent(p, DEFAULT_CONFIG) == p
+
+
+def test_pollard_brent_large_prime_raises() -> None:
+    """pollard_brent raises for large primes not in the trial division table."""
+    with pytest.raises(FactorisationError):
+        pollard_brent(997, DEFAULT_CONFIG)
 
 
 def test_pollard_brent_invalid_config_type_raises() -> None:
