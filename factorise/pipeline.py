@@ -19,6 +19,7 @@ from __future__ import annotations
 __all__ = [
     "FactorStage",
     "FactorisationPipeline",
+    "PipelineConfig",
     "PollardPMinusOneStage",
     "StageFactory",
     "StageResult",
