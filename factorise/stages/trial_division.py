@@ -2,18 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 import time
-
-from loguru import logger
 
 from factorise.core import EXTENDED_SMALL_PRIMES
 from factorise.core import ensure_integer_input
+from factorise.pipeline import elapsed_ms
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
-from factorise.pipeline import elapsed_ms
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 
 class OptimizedTrialDivisionStage(FactorStage):
@@ -84,14 +83,10 @@ class OptimizedTrialDivisionStage(FactorStage):
         for prime in self._prime_table:
             if prime > self._bound:
                 break
-            if prime in {2, 3, 5}:
-                continue
             if n % prime == 0:
-                logger.debug(
-                    "stage={stage} n={n} factor={factor}",
-                    stage=self.name,
-                    n=n,
-                    factor=prime,
+                _LOG.debug(
+                    "stage=%s n=%d factor=%d",
+                    self.name, n, prime,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -101,10 +96,9 @@ class OptimizedTrialDivisionStage(FactorStage):
                     iterations_used=1,
                 )
 
-        logger.debug(
-            "stage={stage} n={n} status=FAILURE reason=no_small_factor",
-            stage=self.name,
-            n=n,
+        _LOG.debug(
+            "stage=%s n=%d status=FAILURE reason=no_small_factor",
+            self.name, n,
         )
         return StageResult(
             stage_name=self.name,

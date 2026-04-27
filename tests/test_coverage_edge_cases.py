@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from factorise.cli import app
+from factorise.cli import main
 from factorise.config import FactoriserConfig
 from factorise.core import BrentPollardCycleResult as AttemptResult
 from factorise.core import FactorisationError
@@ -18,6 +18,29 @@ from tests.conftest import DEFAULT_CONFIG
 SEMIPRIME_LARGE = 233 * 239
 # 1009 * 10007 = 10107263 - another large composite with no small factors
 LARGE_COMPOSITE_NO_SMALL_FACTORS = 1009 * 10007
+
+
+def _run_main(argv: list[str]) -> tuple[int, str, str]:
+    """Run main() with argv, capture stdout/stderr, return (exit_code, stdout, stderr)."""
+    import sys
+    from io import StringIO
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    stdout_buf = StringIO()
+    stderr_buf = StringIO()
+    try:
+        sys.stdout = stdout_buf
+        sys.stderr = stderr_buf
+        try:
+            main(argv)
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if isinstance(e.code, int) else 1
+        return exit_code, stdout_buf.getvalue(), stderr_buf.getvalue()
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
+
 
 # ---------------------------------------------------------------------------
 # Core Defensive Checks
@@ -51,20 +74,10 @@ def test_pollard_brent_invalid_config() -> None:
 
 
 def test_pollard_brent_backtrack_failure() -> None:
-    """Verify ALGORITHM_FAILURE is returned when pollard_brent_attempt exhausts backtrack budget.
-
-    Direct unit testing of the backtrack-failure path is complex due to the
-    iterative nature of the algorithm. This test verifies the ALGORITHM_FAILURE
-    status is produced when the algorithm cannot find a factor.
-    """
-    # Use a number with all large prime factors so trial division can't help
+    """Verify ALGORITHM_FAILURE is returned when pollard_brent_attempt exhausts backtrack budget."""
     n = LARGE_COMPOSITE_NO_SMALL_FACTORS
     config = FactoriserConfig(max_iterations=1, batch_size=1)
-    # With very low iteration budget, the algorithm can't complete factorisation
-    # This results in ITERATION_CAP_HIT, not ALGORITHM_FAILURE, because the
-    # algorithm tracks remaining budget and exits before exhausting backtrack.
     result = pollard_brent_attempt(n, 2, 1, config, max_iterations=1)
-    # With our setup, we get ITERATION_CAP_HIT (iteration cap hit before backtrack)
     assert result.outcome in (
         AttemptStatus.ITERATION_CAP_HIT,
         AttemptStatus.ALGORITHM_FAILURE,
@@ -73,11 +86,8 @@ def test_pollard_brent_backtrack_failure() -> None:
 
 def test_pollard_brent_success_without_factor_bug() -> None:
     """Verify defensive check when algorithm claims success but provides no factor."""
-    fake_success = AttemptResult(AttemptStatus.SUCCESS,
-                                 iterations_used=1,
-                                 factor=None)
-    with patch("factorise.core.execute_brent_pollard_cycle",
-               return_value=fake_success):
+    fake_success = AttemptResult(AttemptStatus.SUCCESS, iterations_used=1, factor=None)
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fake_success):
         with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
@@ -87,13 +97,11 @@ def test_pollard_brent_success_without_factor_bug() -> None:
 def test_pollard_brent_global_iteration_cap_hit() -> None:
     """Verify behavior when the global iteration cap is hit."""
     cap_hit = AttemptResult(AttemptStatus.ITERATION_CAP_HIT, iterations_used=10)
-    with patch("factorise.core.execute_brent_pollard_cycle",
-               return_value=cap_hit):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=cap_hit):
         with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
-            assert f"failed for n={LARGE_COMPOSITE_NO_SMALL_FACTORS}" in str(
-                excinfo.value)
+            assert f"failed for n={LARGE_COMPOSITE_NO_SMALL_FACTORS}" in str(excinfo.value)
 
 
 # ---------------------------------------------------------------------------
@@ -103,34 +111,27 @@ def test_pollard_brent_global_iteration_cap_hit() -> None:
 
 def test_cli_main_invalid_input_value() -> None:
     """Hit the ValueError catch block in cli.main (e.g. invalid config from env)."""
-    from typer.testing import CliRunner
-
-    runner = CliRunner()
     with patch(
-            "factorise.cli.FactoriserConfig.from_env",
-            side_effect=ValueError("bad config"),
+        "factorise.cli.FactoriserConfig.from_env",
+        side_effect=ValueError("bad config"),
     ):
-        result = runner.invoke(app, ["8051"])
-        assert result.exit_code == 1
-        assert "Value Error" in result.output
+        exit_code, stdout, stderr = _run_main(["8051"])
+        assert exit_code == 1
+        assert "Value Error" in stderr
 
 
 def test_cli_main_type_error_catch() -> None:
     """Hit the TypeError catch block in cli.main."""
-    from typer.testing import CliRunner
-
-    runner = CliRunner()
     with patch("factorise.cli.factorise", side_effect=TypeError("not an int")):
-        result = runner.invoke(app, ["8051"])
-        assert result.exit_code == 1
-        assert "Input Error" in result.output
+        exit_code, stdout, stderr = _run_main(["8051"])
+        assert exit_code == 1
+        assert "Input Error" in stderr
 
 
 def test_pollard_brent_all_retries_fail() -> None:
     """Exhaust all retries in pollard_brent to hit loop termination branch."""
     fail_res = AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations_used=1)
-    with patch("factorise.core.execute_brent_pollard_cycle",
-               return_value=fail_res):
+    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fail_res):
         with patch("factorise.core.is_prime", return_value=False):
             cfg = FactoriserConfig(max_retries=1)
             with pytest.raises(FactorisationError):

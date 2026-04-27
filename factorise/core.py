@@ -7,12 +7,11 @@ to find prime factors.
 
 import dataclasses
 import enum
+import logging
 import math
 import random
 from collections import Counter
 from collections.abc import Generator
-
-from loguru import logger
 
 from factorise.config import FactoriserConfig
 
@@ -26,6 +25,8 @@ __all__ = [
     "has_carmichael_property",
     "is_prime",
 ]
+
+_LOG = logging.getLogger("factorise")
 
 # Deterministic witnesses for n < 2^64 (12 bases).
 DETERMINISTIC_WITNESSES: tuple[int, ...] = (
@@ -1117,7 +1118,6 @@ EXTENDED_SMALL_PRIMES: tuple[int, ...] = (
     7993,
 )
 
-logger.disable("factorise")
 
 # ---------------------------------------------------------------------------
 # Result types
@@ -1413,10 +1413,8 @@ def execute_brent_pollard_cycle(
                 batch_limit = max_iterations - iterations
 
             if batch_limit <= 0:
-                logger.warning(
-                    "iteration cap n={n} limit={limit}",
-                    n=n,
-                    limit=max_iterations,
+                _LOG.warning(
+                    "iteration cap n=%d limit=%d", n, max_iterations,
                 )
                 return BrentPollardCycleResult(
                     PollardBrentOutcome.ITERATION_CAP_HIT,
@@ -1463,7 +1461,7 @@ def execute_brent_pollard_cycle(
                 if g > 1:
                     break
             else:
-                logger.warning("backtrack cap n={n}", n=n)
+                _LOG.warning("backtrack cap n=%d", n)
                 return BrentPollardCycleResult(
                     PollardBrentOutcome.ALGORITHM_FAILURE,
                     iterations,
@@ -1521,12 +1519,9 @@ def find_nontrivial_factor_pollard_brent(
                              attempt) if config.seed is not None else random)
         y = rng.randint(1, n - 1)
         c = rng.randint(1, n - 1)
-        logger.debug(
-            "attempt={attempt} n={n} y={y} c={c}",
-            attempt=attempt,
-            n=n,
-            y=y,
-            c=c,
+        _LOG.debug(
+            "attempt=%d n=%d y=%d c=%d",
+            attempt, n, y, c,
         )
 
         result = execute_brent_pollard_cycle(
@@ -1543,12 +1538,12 @@ def find_nontrivial_factor_pollard_brent(
                 raise FactorisationError(
                     "execute_brent_pollard_cycle returned SUCCESS without a factor",
                 )
-            logger.debug("factor={factor} n={n}", factor=result.factor, n=n)
+            _LOG.debug("factor=%d n=%d", result.factor, n)
             return result.factor
 
         if (remaining_iterations <= 0 or
                 result.outcome == PollardBrentOutcome.ITERATION_CAP_HIT):
-            logger.error("global iteration cap hit for n={n}", n=n)
+            _LOG.error("global iteration cap hit for n=%d", n)
             break
 
     raise FactorisationError(
@@ -1587,7 +1582,7 @@ def yield_prime_factors_recursive(
             continue
 
         d = find_nontrivial_factor_pollard_brent(current, config)
-        logger.debug("split n={n} d={d} r={r}", n=current, d=d, r=current // d)
+        _LOG.debug("split n=%d d=%d r=%d", current, d, current // d)
         stack.append(d)
         stack.append(current // d)
 
@@ -1640,7 +1635,7 @@ def factorise(
         raise TypeError(
             f"config must be FactoriserConfig, got {type(config).__name__!r}",)
     cfg = config if config is not None else FactoriserConfig.from_env()
-    logger.info("factorise start n={n}", n=n)
+    _LOG.info("factorise start n=%d", n)
 
     if n == 0:
         return FactorisationResult(
@@ -1675,9 +1670,5 @@ def factorise(
         is_prime=(len(factors) == 1 and sum(powers.values()) == 1 and n > 1),
     )
 
-    logger.info(
-        "factorise complete n={n} factors={factors}",
-        n=n,
-        factors=factors,
-    )
+    _LOG.info("factorise complete n=%d factors=%s", n, factors)
     return result

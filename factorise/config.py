@@ -160,16 +160,7 @@ class AlgorithmConfig:
 
 @dataclasses.dataclass(frozen=True)
 class FactoriserConfig(AlgorithmConfig):
-    """Algorithm parameters for core factorisation.
-
-    Attributes:
-        use_pipeline: Deprecated. Kept for backward compatibility of signatures
-            that accept this parameter, but the core factorise() no longer
-            branches on it. Use factorise_via_pipeline() for pipeline mode.
-
-    """
-
-    use_pipeline: bool = False
+    """Algorithm parameters for core factorisation."""
 
     @classmethod
     def from_env(cls) -> FactoriserConfig:
@@ -191,8 +182,6 @@ class FactoriserConfig(AlgorithmConfig):
                 os.getenv("FACTORISE_MAX_ITERATIONS", "10000000"),),
             max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
             seed=int(seed) if seed is not None else None,
-            use_pipeline=os.getenv("FACTORISE_USE_PIPELINE", "").lower()
-            in ("1", "true", "yes"),
         )
 
 

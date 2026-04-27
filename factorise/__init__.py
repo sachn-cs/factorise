@@ -16,7 +16,6 @@ from factorise.config import AlgorithmConfig
 from factorise.config import FactoriserConfig
 from factorise.config import HybridConfig
 from factorise.config import HybridFactorisationState
-from factorise.config import PipelineConfig
 from factorise.core import FactorisationError
 from factorise.core import FactorisationResult
 from factorise.core import PerfectPowerResult
@@ -27,27 +26,21 @@ from factorise.core import has_carmichael_property
 from factorise.core import is_prime
 from factorise.hybrid import HybridFactorisationEngine
 from factorise.hybrid import hybrid_factorise
-from factorise.pipeline import FactorisationPipeline
 from factorise.pipeline import FactorStage
-from factorise.pipeline import StageFactory
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
-from factorise.pipeline import yield_prime_factors_via_pipeline
 
-__version__ = "0.4.1"
+__version__ = "0.5.2"
 __all__ = [
     "AlgorithmConfig",
     "FactorStage",
     "FactorisationError",
-    "FactorisationPipeline",
     "FactorisationResult",
     "FactoriserConfig",
     "HybridConfig",
     "HybridFactorisationEngine",
     "HybridFactorisationState",
     "PerfectPowerResult",
-    "PipelineConfig",
-    "StageFactory",
     "StageResult",
     "StageStatus",
     "ensure_integer_input",
@@ -56,5 +49,4 @@ __all__ = [
     "has_carmichael_property",
     "hybrid_factorise",
     "is_prime",
-    "yield_prime_factors_via_pipeline",
 ]
