@@ -243,7 +243,7 @@ def test_factorise_negative_one() -> None:
 def test_factorise_invalid_type_raises(bad: object) -> None:
     """Verify that factorise raises TypeError for non-integer inputs."""
     with pytest.raises(TypeError):
-        factorise(bad, DEFAULT_CONFIG)  # type: ignore[arg-type]
+        factorise(cast(int, bad), DEFAULT_CONFIG)
 
 
 def test_factorise_uses_provided_config() -> None:

@@ -1,8 +1,8 @@
 """Tests for factorise.cli using only standard library."""
 
+import dataclasses
 import sys
 from io import StringIO
-from unittest.mock import patch
 
 import pytest
 
@@ -12,29 +12,14 @@ from factorise.cli import main
 from factorise.core import FactorisationResult
 
 
-class _Result:
+@dataclasses.dataclass(frozen=True)
+class _Result(FactorisationResult):
     """Minimal fake FactorisationResult for testing."""
-    __slots__ = ("original", "sign", "factors", "powers", "is_prime")
-
-    def __init__(
-        self,
-        original: int,
-        factors: list[int],
-        powers: dict[int, int],
-        is_prime: bool,
-    ) -> None:
-        self.original = original
-        self.sign = 1
-        self.factors = factors
-        self.powers = powers
-        self.is_prime = is_prime
-
-    def expression(self) -> str:
-        terms = [
-            f"{p}^{e}" if e > 1 else str(p)
-            for p, e in sorted(self.powers.items())
-        ]
-        return " * ".join(terms)
+    original: int
+    sign: int = 1
+    factors: list[int] = dataclasses.field(default_factory=list)
+    powers: dict[int, int] = dataclasses.field(default_factory=dict)
+    is_prime: bool = False
 
 
 def _run_main(argv: list[str]) -> tuple[int, str, str]:
@@ -65,7 +50,7 @@ class TestCLIDisplay:
         assert "prime" in out.lower()
 
     def test_display_factors(self, capsys: pytest.CaptureFixture[str]) -> None:
-        result = _Result(12, [2, 3], {2: 2, 3: 1}, False)
+        result = _Result(original=12, factors=[2, 3], powers={2: 2, 3: 1}, is_prime=False)
         display_factors(result, verbose=False)
         out = capsys.readouterr().out
         assert "12" in out
@@ -73,7 +58,7 @@ class TestCLIDisplay:
         assert "3" in out
 
     def test_display_factors_verbose(self, capsys: pytest.CaptureFixture[str]) -> None:
-        result = _Result(12, [2, 3], {2: 2, 3: 1}, False)
+        result = _Result(original=12, factors=[2, 3], powers={2: 2, 3: 1}, is_prime=False)
         display_factors(result, verbose=True)
         out = capsys.readouterr().out
         assert "2^2" in out or "2" in out

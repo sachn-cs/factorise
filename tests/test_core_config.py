@@ -42,7 +42,7 @@ def test_config_custom_values() -> None:
 def test_config_invalid_raises(kwargs: dict[str, int]) -> None:
     """Verify that FactoriserConfig validates its inputs during initialization."""
     with pytest.raises(ValueError):
-        FactoriserConfig(**kwargs)  # type: ignore[arg-type]
+        FactoriserConfig(**kwargs)
 
 
 def test_config_from_env(monkeypatch: pytest.MonkeyPatch) -> None:

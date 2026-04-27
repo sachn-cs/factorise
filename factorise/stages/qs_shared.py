@@ -7,10 +7,20 @@ and factor extraction used by SIQSStage.
 from __future__ import annotations
 
 import math
-from typing import Any
+from typing import TypedDict
 
-from factorise._utils import sieve_primes
-from factorise.core import is_prime
+
+class QSRelation(TypedDict):
+    """A smooth relation from the Quadratic Sieve or SIQS.
+
+    Attributes:
+        a: The sieve position (integer candidate).
+        a2_mod_n: The value (a^2 mod n) that factors over the prime base.
+        exponents: List of exponents, one per prime in the factor base.
+    """
+    a: int
+    a2_mod_n: int
+    exponents: list[int]
 
 
 def is_small_prime(candidate: int) -> bool:
@@ -94,7 +104,7 @@ def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
 
 
 def find_dependency(
-    relations: list[dict[str, Any]],
+    relations: list[QSRelation],
     num_primes: int,
 ) -> list[int] | None:
     """Find a linear dependency via Gaussian elimination over GF(2).
@@ -161,7 +171,7 @@ def find_dependency(
             break
 
     # Back-substitution: find zero-mask row with non-zero history
-    for mask, history, orig_idx in rows:
+    for mask, history, _orig_idx in rows:
         if mask == 0 and history != 0:
             # Extract which non-trivial relations combine to zero
             result: list[int] = []
@@ -179,7 +189,7 @@ def find_dependency(
 
 def extract_factor(
     n: int,
-    relations: list[dict[str, Any]],
+    relations: list[QSRelation],
     dependency: list[int],
     prime_base: list[int],
 ) -> int | None:

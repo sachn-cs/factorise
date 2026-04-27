@@ -7,10 +7,10 @@ import time
 
 from factorise.core import EXTENDED_SMALL_PRIMES
 from factorise.core import ensure_integer_input
-from factorise.pipeline import elapsed_ms
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
+from factorise.pipeline import elapsed_ms
 
 _LOG = logging.getLogger("factorise")
 

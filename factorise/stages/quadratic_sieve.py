@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import math
 import time
-from typing import Any
 
 from factorise.core import ensure_integer_input
 from factorise.core import is_prime
@@ -13,6 +12,7 @@ from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
 from factorise.pipeline import elapsed_ms
+from factorise.stages.qs_shared import QSRelation
 from factorise.stages.qs_shared import extract_factor
 from factorise.stages.qs_shared import factor_over_base
 from factorise.stages.qs_shared import find_dependency
@@ -145,8 +145,8 @@ class QuadraticSieveStage(FactorStage):
         self,
         n: int,
         prime_base: list[int],
-    ) -> list[dict[str, Any]]:
-        relations: list[dict[str, Any]] = []
+    ) -> list[QSRelation]:
+        relations: list[QSRelation] = []
         target_count = len(prime_base) + RELATION_EXTRA_COUNT
         sqrt_n = math.isqrt(n) + 1
 

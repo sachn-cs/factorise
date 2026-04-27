@@ -16,15 +16,13 @@ import logging
 from collections import Counter
 
 from factorise.config import HybridConfig
-from factorise.core import (
-    EXTENDED_SMALL_PRIMES,
-    FactorisationError,
-    FactorisationResult,
-    ensure_integer_input,
-    find_perfect_power,
-    has_carmichael_property,
-    is_prime,
-)
+from factorise.core import EXTENDED_SMALL_PRIMES
+from factorise.core import FactorisationError
+from factorise.core import FactorisationResult
+from factorise.core import ensure_integer_input
+from factorise.core import find_perfect_power
+from factorise.core import has_carmichael_property
+from factorise.core import is_prime
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageStatus
 from factorise.stages.ecm_two_pass import TwoPassECMStage

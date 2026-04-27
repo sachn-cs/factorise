@@ -1,13 +1,7 @@
 """Targeted tests for coverage gaps in hybrid, ecm, and core."""
 
-import subprocess
-import unittest.mock as mock
-
-import pytest
-
 from factorise.config import HybridConfig
 from factorise.core import BrentPollardCycleResult
-from factorise.core import FactorisationError
 from factorise.core import PollardBrentOutcome
 from factorise.core import execute_brent_pollard_cycle
 from factorise.core import has_carmichael_property

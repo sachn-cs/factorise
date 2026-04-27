@@ -38,8 +38,8 @@ _LOG = logging.getLogger("factorise")
 __all__ = [
     "FactorStage",
     "FactorisationPipeline",
+    "PipelineConfig",
     "PollardPMinusOneStage",
-    "StageFactory",
     "StageResult",
     "StageStatus",
     "yield_prime_factors_via_pipeline",
@@ -218,12 +218,10 @@ class FactorisationPipeline:
 
     def _build_stage_map(self) -> dict[str, FactorStage]:
         """Build the stage map from the configured stage order."""
+        from factorise.stages.gnfs_optimized import OptimizedGNFSStage
+        from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
         from factorise.stages.pollard_rho import PollardRhoStage
         from factorise.stages.trial_division import OptimizedTrialDivisionStage
-        from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
-        from factorise.stages.ecm_two_pass import TwoPassECMStage
-        from factorise.stages.siqs import SIQSStage
-        from factorise.stages.gnfs_optimized import OptimizedGNFSStage
 
         stages: dict[str, FactorStage] = {}
         for name in self._config.enabled_stages():

@@ -15,9 +15,8 @@ from __future__ import annotations
 import dataclasses
 import logging
 import math
-import random
 import time
-from typing import Any
+from typing import TypedDict
 
 from factorise._utils import sieve_primes
 from factorise.core import is_prime as _is_prime
@@ -25,6 +24,21 @@ from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
 from factorise.pipeline import elapsed_ms
+
+
+class GNFSRelation(TypedDict):
+    """A smooth relation from the Number Field Sieve.
+
+    Attributes:
+        a: The a-coordinate in the sieving region.
+        b: The b-coordinate in the sieving region.
+        norm: The algebraic norm N = a^2 - m*b^2.
+        exponents: Exponent vector over rational + algebraic factor bases.
+    """
+    a: int
+    b: int
+    norm: int
+    exponents: list[int]
 
 _LOG = logging.getLogger("factorise")
 
@@ -179,14 +193,14 @@ def _lattice_sieve(
     max_a: int,
     max_b: int,
     target_count: int,
-) -> list[dict[str, Any]]:
+) -> list[GNFSRelation]:
     """Lattice sieve for single-polynomial GNFS.
 
     For f(x) = x² - m, norm of (a,b) is N = a² - m*b².
     We sieve a in region around m*b where N is small.
     """
     all_primes = rational_base + algebraic_base
-    relations: list[dict[str, Any]] = []
+    relations: list[GNFSRelation] = []
 
     for b in range(1, max_b + 1):
         center = m * b
@@ -259,7 +273,7 @@ def _lattice_sieve(
 
 
 def _find_dependency(
-    relations: list[dict[str, Any]],
+    relations: list[GNFSRelation],
     num_cols: int,
 ) -> list[int] | None:
     """Find linear dependency via Gaussian elimination over GF(2).
@@ -328,7 +342,7 @@ def _find_dependency(
 def _extract_factor(
     n: int,
     m: int,
-    relations: list[dict[str, Any]],
+    relations: list[GNFSRelation],
     dependency: list[int],
     rational_base: list[int],
     algebraic_base: list[int],
@@ -433,13 +447,13 @@ def gnfs_find_factor(
         if bound == 0:
             return None
 
+    assert bound is not None and max_a is not None and max_b is not None
     target = bound + 10
 
     for attempt in range(max_attempts):
         poly, m = _select_polynomial(n)
         if attempt > 0:
             m += attempt * 7 + 11
-            poly = Polynomial(a=1, b=0, c=-m)
 
         rational_base, algebraic_base = _build_factor_bases(n, m, bound)
 
