@@ -9,10 +9,8 @@ __all__ = ["main"]
 
 import argparse
 import logging
-import os
 import signal
 import sys
-import textwrap
 from types import FrameType
 
 from factorise.config import FactoriserConfig

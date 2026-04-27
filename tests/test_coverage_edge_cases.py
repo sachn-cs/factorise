@@ -1,5 +1,6 @@
 """Dedicated tests for defensive edge cases and logic paths to push coverage to >99%."""
 
+from typing import cast
 from unittest.mock import patch
 
 import pytest
@@ -57,14 +58,14 @@ def test_validate_int_error_message() -> None:
 def test_pollard_brent_attempt_invalid_config() -> None:
     """Trigger the defensive type check for config in pollard_brent_attempt."""
     with pytest.raises(TypeError) as excinfo:
-        pollard_brent_attempt(15, 2, 1, "not_a_config", 100)  # type: ignore
+        pollard_brent_attempt(15, 2, 1, cast(FactoriserConfig, "not_a_config"), 100)
     assert "config must be FactoriserConfig" in str(excinfo.value)
 
 
 def test_pollard_brent_invalid_config() -> None:
     """Trigger the defensive type check for config in pollard_brent."""
     with pytest.raises(TypeError) as excinfo:
-        pollard_brent(15, "not_a_config")  # type: ignore
+        pollard_brent(15, cast(FactoriserConfig, "not_a_config"))
     assert "config must be FactoriserConfig" in str(excinfo.value)
 
 

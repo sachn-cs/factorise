@@ -112,4 +112,5 @@ force-single-line = true
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "benchmarks/*" = ["F401", "B018", "T201"]
+"factorise/cli.py" = ["T201"]
 "scratch/*" = ["T201"]

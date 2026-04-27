@@ -1,6 +1,7 @@
 """Primality testing behavior for factorise.core.is_prime."""
 
 import math
+from typing import cast
 
 import pytest
 
@@ -56,7 +57,7 @@ def test_is_prime_large_composites(c: int) -> None:
 def test_is_prime_invalid_type_raises(bad: object) -> None:
     """Verify that is_prime raises TypeError for non-integer inputs."""
     with pytest.raises(TypeError):
-        is_prime(bad)  # type: ignore[arg-type]
+        is_prime(cast(int, bad))
 
 
 @pytest.mark.parametrize("n", [97, 121, 2**31 - 1, 10**9 + 7])

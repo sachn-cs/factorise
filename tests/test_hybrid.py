@@ -1,5 +1,7 @@
 """Comprehensive tests for the hybrid factorisation engine and config."""
 
+from typing import Any
+
 import pytest
 
 from factorise.config import HybridConfig
@@ -60,10 +62,10 @@ def test_hybrid_config_custom() -> None:
         },
     ],
 )
-def test_hybrid_config_invalid(kwargs: dict[str, int]) -> None:
+def test_hybrid_config_invalid(kwargs: dict[str, Any]) -> None:
     """Verify HybridConfig rejects invalid values."""
     with pytest.raises(ValueError):
-        HybridConfig(**kwargs)  # type: ignore[arg-type]
+        HybridConfig(**kwargs)
 
 
 # ---------------------------------------------------------------------------

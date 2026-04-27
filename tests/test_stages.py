@@ -1,6 +1,7 @@
 """Comprehensive tests for all factorisation stage implementations."""
 
 from factorise.pipeline import StageStatus
+from factorise.stages.qs_shared import QSRelation
 
 # ---------------------------------------------------------------------------
 # Trial Division
@@ -459,16 +460,10 @@ def test_find_dependency() -> None:
     """Verify Gaussian elimination dependency finder."""
     from factorise.stages.qs_shared import find_dependency
 
-    relations = [
-        {
-            "exponents": [0, 1, 1]
-        },
-        {
-            "exponents": [1, 0, 1]
-        },
-        {
-            "exponents": [1, 1, 0]
-        },
+    relations: list[QSRelation] = [
+        {"a": 1, "a2_mod_n": 1, "exponents": [0, 1, 1]},
+        {"a": 2, "a2_mod_n": 4, "exponents": [1, 0, 1]},
+        {"a": 3, "a2_mod_n": 9, "exponents": [1, 1, 0]},
     ]
     dep = find_dependency(relations, 3)
     assert dep is not None
@@ -478,7 +473,9 @@ def test_find_dependency_none() -> None:
     """Verify find_dependency returns None when insufficient relations."""
     from factorise.stages.qs_shared import find_dependency
 
-    relations = [{"exponents": [0, 1, 1]}]
+    relations: list[QSRelation] = [
+        {"a": 1, "a2_mod_n": 1, "exponents": [0, 1, 1]},
+    ]
     dep = find_dependency(relations, 3)
     assert dep is None
 
@@ -487,35 +484,21 @@ def test_extract_factor() -> None:
     """Verify factor extraction from relations."""
     from factorise.stages.qs_shared import extract_factor
 
-    relations = [
-        {
-            "a": 2,
-            "a2_mod_n": 4,
-            "exponents": [2]
-        },
-        {
-            "a": 3,
-            "a2_mod_n": 9,
-            "exponents": [0]
-        },
+    relations: list[QSRelation] = [
+        {"a": 2, "a2_mod_n": 4, "exponents": [2]},
+        {"a": 3, "a2_mod_n": 9, "exponents": [0]},
     ]
     dependency = [1, 1]
     prime_base = [2]
-    # n = 15; a=2, a2=4; a=3, a2=9; 4*9=36 ≡ 6 (mod 15); gcd(6±1,15) = ?
     _result = extract_factor(15, relations, dependency, prime_base)
-    # May or may not find a factor
 
 
 def test_extract_factor_trivial() -> None:
     """Verify extract_factor handles trivial cases."""
     from factorise.stages.qs_shared import extract_factor
 
-    relations = [
-        {
-            "a": 1,
-            "a2_mod_n": 1,
-            "exponents": [0]
-        },
+    relations: list[QSRelation] = [
+        {"a": 1, "a2_mod_n": 1, "exponents": [0]},
     ]
     dependency = [0]
     prime_base = [2]
