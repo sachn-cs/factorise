@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+import logging
 import time
-
-from loguru import logger
 
 from factorise.config import FactoriserConfig
 from factorise.core import FactorisationError
@@ -14,7 +13,7 @@ from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 
 class PollardRhoStage(FactorStage):
@@ -62,11 +61,9 @@ class PollardRhoStage(FactorStage):
 
         try:
             factor = find_nontrivial_factor_pollard_brent(n, cfg)
-            logger.debug(
-                "stage={stage} n={n} factor={factor}",
-                stage=self.name,
-                n=n,
-                factor=factor,
+            _LOG.debug(
+                "stage=%s n=%d factor=%d",
+                self.name, n, factor,
             )
             return StageResult(
                 stage_name=self.name,
@@ -76,11 +73,9 @@ class PollardRhoStage(FactorStage):
                 iterations_used=self._max_retries,
             )
         except FactorisationError as exc:
-            logger.debug(
-                "stage={stage} n={n} status=FAILURE reason={reason}",
-                stage=self.name,
-                n=n,
-                reason=str(exc),
+            _LOG.debug(
+                "stage=%s n=%d status=FAILURE reason=%s",
+                self.name, n, str(exc),
             )
             return StageResult(
                 stage_name=self.name,

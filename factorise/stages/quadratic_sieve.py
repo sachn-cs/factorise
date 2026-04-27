@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from typing import Any
-
-from loguru import logger
 
 from factorise.core import ensure_integer_input
 from factorise.core import is_prime
@@ -19,7 +18,7 @@ from factorise.stages.qs_shared import factor_over_base
 from factorise.stages.qs_shared import find_dependency
 from factorise.stages.qs_shared import is_small_prime
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 MAX_QS_BIT_LENGTH: int = 80
 DEFAULT_SMOOTHNESS_BOUND: int = 1000
@@ -69,8 +68,8 @@ class QuadraticSieveStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=elapsed_ms(start),
-                reason=
-                (f"n too large for QS ({n.bit_length()} bits > {MAX_QS_BIT_LENGTH})"
+                reason=(
+                    f"n too large for QS ({n.bit_length()} bits > {MAX_QS_BIT_LENGTH})"
                 ),
             )
 
@@ -95,11 +94,9 @@ class QuadraticSieveStage(FactorStage):
 
         factor = self._find_factor(n)
         if factor is not None and 1 < factor < n:
-            logger.debug(
-                "stage={stage} n={n} factor={factor}",
-                stage=self.name,
-                n=n,
-                factor=factor,
+            _LOG.debug(
+                "stage=%s n=%d factor=%d",
+                self.name, n, factor,
             )
             return StageResult(
                 stage_name=self.name,
@@ -149,7 +146,7 @@ class QuadraticSieveStage(FactorStage):
         n: int,
         prime_base: list[int],
     ) -> list[dict[str, Any]]:
-        relations = []
+        relations: list[dict[str, Any]] = []
         target_count = len(prime_base) + RELATION_EXTRA_COUNT
         sqrt_n = math.isqrt(n) + 1
 
@@ -169,7 +166,8 @@ class QuadraticSieveStage(FactorStage):
                         "a": candidate,
                         "a2_mod_n": square_mod,
                         "exponents": exponents,
-                    },)
+                    },
+                )
                 if len(relations) >= target_count:
                     return relations
 

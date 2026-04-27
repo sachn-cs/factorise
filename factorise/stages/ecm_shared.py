@@ -10,6 +10,8 @@ from __future__ import annotations
 import math
 import random
 
+from factorise._utils import sieve_primes
+
 
 def compute_modular_inverse(a: int, n: int) -> int:
     """Return the modular inverse of a modulo n.
@@ -49,15 +51,7 @@ def generate_primes_up_to(bound: int) -> list[int]:
         Returns an empty list if bound < 2.
 
     """
-    if bound < 2:
-        return []
-    sieve = list(range(bound + 1))
-    sieve[0] = sieve[1] = 0
-    for i in range(2, int(bound**0.5) + 1):
-        if sieve[i]:
-            for j in range(i * i, bound + 1, i):
-                sieve[j] = 0
-    return [p for p in sieve if p]
+    return sieve_primes(bound)
 
 
 class EllipticCurveOperations:

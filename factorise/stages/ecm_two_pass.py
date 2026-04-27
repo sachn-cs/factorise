@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
+import logging
 import time
-
-from loguru import logger
 
 from factorise.core import ensure_integer_input
 from factorise.pipeline import FactorStage
@@ -14,7 +13,7 @@ from factorise.pipeline import elapsed_ms
 from factorise.stages.ecm_shared import EllipticCurveOperations
 from factorise.stages.ecm_shared import generate_primes_up_to
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 
 class TwoPassECMStage(EllipticCurveOperations, FactorStage):
@@ -71,12 +70,9 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
                 self._first_pass_bound,
             )
             if factor is not None and 1 < factor < n:
-                logger.debug(
-                    "stage={stage} n={n} factor={factor} curve={curve}",
-                    stage=self.name,
-                    n=n,
-                    factor=factor,
-                    curve=curve_num + 1,
+                _LOG.debug(
+                    "stage=%s n=%d factor=%d curve=%d",
+                    self.name, n, factor, curve_num + 1,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -95,12 +91,10 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
                 self._second_pass_bound,
             )
             if factor is not None and 1 < factor < n:
-                logger.debug(
-                    "stage={stage} n={n} factor={factor} curve={curve} stage=2",
-                    stage=self.name,
-                    n=n,
-                    factor=factor,
-                    curve=self._first_pass_curves + curve_num + 1,
+                _LOG.debug(
+                    "stage=%s n=%d factor=%d curve=%d stage=2",
+                    self.name, n, factor,
+                    self._first_pass_curves + curve_num + 1,
                 )
                 return StageResult(
                     stage_name=self.name,

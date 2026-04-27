@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import time
 from typing import Any
-
-from loguru import logger
 
 from factorise.core import ensure_integer_input
 from factorise.core import is_prime
@@ -17,9 +16,8 @@ from factorise.pipeline import elapsed_ms
 from factorise.stages.qs_shared import extract_factor
 from factorise.stages.qs_shared import factor_over_base
 from factorise.stages.qs_shared import find_dependency
-from factorise.stages.qs_shared import is_small_prime
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 MAX_SIQS_BIT_LENGTH: int = 110
 MAX_SMALL_PRIME_DIVISOR: int = 2000
@@ -99,11 +97,9 @@ class SIQSStage(FactorStage):
 
         factor = self._find_factor(n)
         if factor is not None and 1 < factor < n:
-            logger.debug(
-                "stage={stage} n={n} factor={factor}",
-                stage=self.name,
-                n=n,
-                factor=factor,
+            _LOG.debug(
+                "stage=%s n=%d factor=%d",
+                self.name, n, factor,
             )
             return StageResult(
                 stage_name=self.name,
@@ -148,7 +144,7 @@ class SIQSStage(FactorStage):
         base: list[int] = [-1]
         limit = min(bound, MAX_SMALL_PRIME_DIVISOR)
         for candidate in range(3, limit, 2):
-            if not is_small_prime(candidate):
+            if not is_prime(candidate):
                 continue
             if pow(n, (candidate - 1) // 2, candidate) != 1:
                 continue

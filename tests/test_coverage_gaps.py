@@ -1,4 +1,4 @@
-"""Targeted tests for coverage gaps in hybrid, gnfs, ecm, and core."""
+"""Targeted tests for coverage gaps in hybrid, ecm, and core."""
 
 import subprocess
 import unittest.mock as mock
@@ -17,7 +17,7 @@ from factorise.pipeline import StageStatus
 from factorise.pipeline import yield_prime_factors_via_pipeline
 from factorise.stages.ecm import ECMStage
 from factorise.stages.ecm_two_pass import TwoPassECMStage
-from factorise.stages.gnfs import GNFSStage
+from factorise.stages.gnfs_optimized import OptimizedGNFSStage
 from factorise.stages.pollard_rho import PollardRhoStage
 
 # ---------------------------------------------------------------------------
@@ -68,133 +68,46 @@ def test_hybrid_factorise_convenience() -> None:
 
 
 # ---------------------------------------------------------------------------
-# gnfs.py — all branches via mocking
+# gnfs_optimized.py — pure Python GNFS tests
 # ---------------------------------------------------------------------------
 
 
-def test_gnfs_skips_too_small() -> None:
+def test_gnfs_optimized_skips_too_small() -> None:
     """Verify GNFS skips n < 3."""
-    stage = GNFSStage(binary="msieve")
+    stage = OptimizedGNFSStage()
     result = stage.attempt(2)
     assert result.status is StageStatus.SKIPPED
 
 
-def test_gnfs_skips_prime() -> None:
+def test_gnfs_optimized_skips_prime() -> None:
     """Verify GNFS skips prime inputs."""
-    stage = GNFSStage(binary="msieve")
+    stage = OptimizedGNFSStage()
     result = stage.attempt(97)
     assert result.status is StageStatus.SKIPPED
 
 
-def test_gnfs_build_command_msieve() -> None:
-    """Verify build_command for msieve."""
-    stage = GNFSStage(binary="msieve")
-    cmd = stage.build_command("input.txt", "fact.txt", "/tmp", 12345)
-    assert "msieve" in cmd
-    assert "input.txt" in cmd
-
-
-def test_gnfs_build_command_cado() -> None:
-    """Verify build_command for cado-nfs."""
-    stage = GNFSStage(binary="cado-nfs")
-    cmd = stage.build_command("input.txt", "fact.txt", "/tmp", 12345)
-    assert "cado-nfs" in cmd
-    assert "tasks.factor.bswap_nwords=1" in cmd
-
-
-def test_gnfs_build_command_generic() -> None:
-    """Verify build_command for generic binary."""
-    stage = GNFSStage(binary="gnfs")
-    cmd = stage.build_command("input.txt", "fact.txt", "/tmp", 12345)
-    assert cmd == ["gnfs", "input.txt"]
-
-
-def test_gnfs_parse_factor_output_fact_file(tmp_path) -> None:
-    """Verify parse_factor_output reads fact file."""
-    stage = GNFSStage()
-    fact_file = tmp_path / "factors.txt"
-    fact_file.write_text("1234567\n8901234\n")
-    factors = stage.parse_factor_output("", str(fact_file))
-    assert 1234567 in factors
-    assert 8901234 in factors
-
-
-def test_gnfs_parse_factor_output_p_notation() -> None:
-    """Verify parse_factor_output parses pN = notation."""
-    stage = GNFSStage()
-    output = "p1 = 1234567\nP2 = 8901234\n"
-    factors = stage.parse_factor_output(output, None)
-    assert 1234567 in factors
-    assert 8901234 in factors
-
-
-def test_gnfs_parse_factor_output_large_digits() -> None:
-    """Verify parse_factor_output parses large digit lines."""
-    stage = GNFSStage()
-    # Use a prime with >= 5 digits so is_small_prime includes it
-    output = "\n  10007  \n"
-    factors = stage.parse_factor_output(output, None)
-    assert 10007 in factors
-
-
-def test_gnfs_run_external_timeout() -> None:
-    """Verify run_external_gnfs raises on timeout."""
-    stage = GNFSStage(binary="msieve", timeout_seconds=1)
-    with mock.patch("shutil.which", return_value="/bin/msieve"):
-        with mock.patch("subprocess.run",
-                        side_effect=subprocess.TimeoutExpired("cmd", 1)):
-            with pytest.raises(FactorisationError):
-                stage.run_external_gnfs(2**90 + 1)
-
-
-def test_gnfs_run_external_bad_exit() -> None:
-    """Verify run_external_gnfs raises on non-zero exit."""
-    stage = GNFSStage(binary="msieve")
-    mock_result = mock.Mock()
-    mock_result.stdout = ""
-    mock_result.stderr = "error"
-    mock_result.returncode = 1
-    with mock.patch("shutil.which", return_value="/bin/msieve"):
-        with mock.patch("subprocess.run", return_value=mock_result):
-            with mock.patch.object(stage,
-                                   "parse_factor_output",
-                                   return_value=[]):
-                with pytest.raises(FactorisationError):
-                    stage.run_external_gnfs(2**90 + 1)
-
-
-def test_gnfs_run_external_no_factors() -> None:
-    """Verify run_external_gnfs raises when no factors found."""
-    stage = GNFSStage(binary="msieve")
-    mock_result = mock.Mock()
-    mock_result.stdout = ""
-    mock_result.stderr = ""
-    mock_result.returncode = 0
-    with mock.patch("shutil.which", return_value="/bin/msieve"):
-        with mock.patch("subprocess.run", return_value=mock_result):
-            with mock.patch.object(stage,
-                                   "parse_factor_output",
-                                   return_value=[]):
-                with pytest.raises(FactorisationError):
-                    stage.run_external_gnfs(2**90 + 1)
-
-
-def test_gnfs_attempt_successful() -> None:
-    """Verify GNFS attempt returns SUCCESS when factor found."""
-    stage = GNFSStage(binary="msieve")
-    with mock.patch.object(stage, "is_tool_available", return_value=True):
-        with mock.patch.object(stage, "run_external_gnfs", return_value=7):
-            n = 2**90 + 1  # Must be >= 80 bits
-            result = stage.attempt(n)
-            assert result.status is StageStatus.SUCCESS
-            assert result.factor is not None
-
-
-def test_gnfs_attempt_tool_unavailable() -> None:
-    """Verify GNFS skips when binary not available."""
-    stage = GNFSStage(binary="nonexistent_tool_xyz")
-    result = stage.attempt(2**90 + 1)
+def test_gnfs_optimized_skips_below_min_bits() -> None:
+    """Verify GNFS skips inputs below minimum bit length."""
+    stage = OptimizedGNFSStage()
+    result = stage.attempt(91)  # Below 60-bit minimum
     assert result.status is StageStatus.SKIPPED
+
+
+def test_gnfs_optimized_skips_above_max_bits() -> None:
+    """Verify GNFS skips inputs above maximum bit length."""
+    stage = OptimizedGNFSStage()
+    result = stage.attempt(2**300 + 1)  # Above 256-bit maximum
+    assert result.status is StageStatus.SKIPPED
+
+
+def test_gnfs_optimized_perfect_square() -> None:
+    """Verify GNFS finds perfect square factors."""
+    stage = OptimizedGNFSStage()
+    # (2**31 + 127)^2 ~ 62 bits
+    n = (2**31 + 127) ** 2
+    result = stage.attempt(n)
+    assert result.status is StageStatus.SUCCESS
+    assert result.factor == 2**31 + 127
 
 
 # ---------------------------------------------------------------------------

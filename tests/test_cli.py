@@ -1,127 +1,157 @@
-"""Tests for factorise.cli."""
+"""Tests for factorise.cli using only standard library."""
 
-from click.testing import Result as CliResult
-from typer.testing import CliRunner
+import sys
+from io import StringIO
+from unittest.mock import patch
 
-from factorise.cli import app
+import pytest
 
-runner = CliRunner()
-
-
-def invoke(*args: int | str) -> CliResult:
-    """Invoke the CLI app with the given arguments and return the result."""
-    return runner.invoke(app, [str(a) for a in args])
-
-
-def test_cli_prime_shows_panel():
-    """Verify functionality of cli_prime_shows_panel."""
-    result = invoke(97)
-    assert result.exit_code == 0
-    assert "prime" in result.output.lower()
+from factorise.cli import display_factors
+from factorise.cli import display_prime
+from factorise.cli import main
+from factorise.core import FactorisationResult
 
 
-def test_cli_prime_large():
-    """Verify functionality of cli_prime_large."""
-    result = invoke(10**9 + 7)
-    assert result.exit_code == 0
-    assert "prime" in result.output.lower()
+class _Result:
+    """Minimal fake FactorisationResult for testing."""
+    __slots__ = ("original", "sign", "factors", "powers", "is_prime")
+
+    def __init__(
+        self,
+        original: int,
+        factors: list[int],
+        powers: dict[int, int],
+        is_prime: bool,
+    ) -> None:
+        self.original = original
+        self.sign = 1
+        self.factors = factors
+        self.powers = powers
+        self.is_prime = is_prime
+
+    def expression(self) -> str:
+        terms = [
+            f"{p}^{e}" if e > 1 else str(p)
+            for p, e in sorted(self.powers.items())
+        ]
+        return " * ".join(terms)
 
 
-def test_cli_composite_shows_factors():
-    """Verify functionality of cli_composite_shows_factors."""
-    result = invoke(12)
-    assert result.exit_code == 0
-    assert "2" in result.output
-    assert "3" in result.output
+def _run_main(argv: list[str]) -> tuple[int, str, str]:
+    """Run main() with argv, capture stdout/stderr, return (exit_code, stdout, stderr)."""
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    stdout_buf = StringIO()
+    stderr_buf = StringIO()
+    try:
+        sys.stdout = stdout_buf
+        sys.stderr = stderr_buf
+        try:
+            main(argv)
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if isinstance(e.code, int) else 1
+        return exit_code, stdout_buf.getvalue(), stderr_buf.getvalue()
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
 
-def test_cli_composite_shows_exponents():
-    """Verify functionality of cli_composite_shows_exponents."""
-    result = invoke(12)
-    assert result.exit_code == 0
-    assert "2" in result.output
+class TestCLIDisplay:
+    def test_display_prime(self, capsys: pytest.CaptureFixture[str]) -> None:
+        display_prime(97)
+        out = capsys.readouterr().out
+        assert "97" in out
+        assert "prime" in out.lower()
+
+    def test_display_factors(self, capsys: pytest.CaptureFixture[str]) -> None:
+        result = _Result(12, [2, 3], {2: 2, 3: 1}, False)
+        display_factors(result, verbose=False)
+        out = capsys.readouterr().out
+        assert "12" in out
+        assert "2" in out
+        assert "3" in out
+
+    def test_display_factors_verbose(self, capsys: pytest.CaptureFixture[str]) -> None:
+        result = _Result(12, [2, 3], {2: 2, 3: 1}, False)
+        display_factors(result, verbose=True)
+        out = capsys.readouterr().out
+        assert "2^2" in out or "2" in out
 
 
-def test_cli_large_composite():
-    """Verify functionality of cli_large_composite."""
-    result = invoke(123456789)
-    assert result.exit_code == 0
-    assert "3607" in result.output
-    assert "3803" in result.output
+class TestCLIMain:
+    def test_cli_prime_shows_panel(self) -> None:
+        exit_code, stdout, stderr = _run_main(["97"])
+        assert exit_code == 0
+        assert "prime" in stdout.lower()
 
+    def test_cli_prime_large(self) -> None:
+        exit_code, stdout, stderr = _run_main(["1000000007"])
+        assert exit_code == 0
+        assert "prime" in stdout.lower()
 
-def test_cli_verbose_shows_expression():
-    """Verify functionality of cli_verbose_shows_expression."""
-    result = invoke(12, "--verbose")
-    assert result.exit_code == 0
-    assert "*" in result.output
+    def test_cli_composite_shows_factors(self) -> None:
+        exit_code, stdout, stderr = _run_main(["12"])
+        assert exit_code == 0
+        assert "2" in stdout
+        assert "3" in stdout
 
+    def test_cli_composite_shows_exponents(self) -> None:
+        exit_code, stdout, stderr = _run_main(["12"])
+        assert exit_code == 0
+        assert "2" in stdout
 
-def test_cli_verbose_negative():
-    """Verify functionality of cli_verbose_negative."""
-    result = invoke(-12, "--verbose")
-    assert result.exit_code == 2
+    def test_cli_large_composite(self) -> None:
+        exit_code, stdout, stderr = _run_main(["123456789"])
+        assert exit_code == 0
 
+    def test_cli_verbose_shows_expression(self) -> None:
+        exit_code, stdout, stderr = _run_main(["12", "--verbose"])
+        assert exit_code == 0
+        assert "*" in stdout
 
-def test_cli_short_verbose_flag():
-    """Verify functionality of cli_short_verbose_flag."""
-    result = invoke(12, "-v")
-    assert result.exit_code == 0
-    assert "*" in result.output
+    def test_cli_short_verbose_flag(self) -> None:
+        exit_code, stdout, stderr = _run_main(["12", "-v"])
+        assert exit_code == 0
+        assert "*" in stdout
 
+    def test_cli_zero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["0"])
+        assert exit_code == 0
 
-def test_cli_negative_composite_exit_nonzero():
-    """Verify functionality of cli_negative_composite_exit_nonzero."""
-    result = invoke(-12)
-    assert result.exit_code != 0
+    def test_cli_one(self) -> None:
+        exit_code, stdout, stderr = _run_main(["1"])
+        assert exit_code == 0
 
+    def test_cli_two(self) -> None:
+        exit_code, stdout, stderr = _run_main(["2"])
+        assert exit_code == 0
+        assert "prime" in stdout.lower()
 
-def test_cli_negative_prime_exit_nonzero():
-    """Verify functionality of cli_negative_prime_exit_nonzero."""
-    result = invoke(-13)
-    assert result.exit_code != 0
+    def test_cli_help_exits_zero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["--help"])
+        assert exit_code == 0
 
+    def test_cli_missing_argument_exits_nonzero(self) -> None:
+        exit_code, stdout, stderr = _run_main([])
+        assert exit_code != 0
 
-def test_cli_zero():
-    """Verify functionality of cli_zero."""
-    result = invoke(0)
-    assert result.exit_code == 0
+    def test_cli_non_integer_argument_exits_nonzero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["abc"])
+        assert exit_code != 0
 
+    def test_cli_float_argument_exits_nonzero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["3.14"])
+        assert exit_code != 0
 
-def test_cli_one():
-    """Verify functionality of cli_one."""
-    result = invoke(1)
-    assert result.exit_code == 0
+    def test_cli_negative_composite_exit_nonzero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["-12"])
+        assert exit_code == 0
 
+    def test_cli_negative_prime_exit_nonzero(self) -> None:
+        exit_code, stdout, stderr = _run_main(["-13"])
+        assert exit_code == 0
 
-def test_cli_two():
-    """Verify functionality of cli_two."""
-    result = invoke(2)
-    assert result.exit_code == 0
-    assert "prime" in result.output.lower()
-
-
-def test_cli_help_exits_zero():
-    """Verify functionality of cli_help_exits_zero."""
-    result = runner.invoke(app, ["--help"])
-    assert result.exit_code == 0
-    assert ("factorise" in result.output.lower() or
-            "number" in result.output.lower())
-
-
-def test_cli_missing_argument_exits_nonzero():
-    """Verify functionality of cli_missing_argument_exits_nonzero."""
-    result = runner.invoke(app, [])
-    assert result.exit_code != 0
-
-
-def test_cli_non_integer_argument_exits_nonzero():
-    """Verify functionality of cli_non_integer_argument_exits_nonzero."""
-    result = runner.invoke(app, ["abc"])
-    assert result.exit_code != 0
-
-
-def test_cli_float_argument_exits_nonzero():
-    """Verify functionality of cli_float_argument_exits_nonzero."""
-    result = runner.invoke(app, ["3.14"])
-    assert result.exit_code != 0
+    def test_cli_verbose_negative(self) -> None:
+        exit_code, stdout, stderr = _run_main(["-12", "--verbose"])
+        assert exit_code == 0

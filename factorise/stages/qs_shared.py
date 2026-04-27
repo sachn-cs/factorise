@@ -1,13 +1,16 @@
 """Shared routines for quadratic sieve-based stages.
 
 Provides prime testing, smoothness checking, linear algebra over GF(2),
-and factor extraction used by QuadraticSieveStage and SIQSStage.
+and factor extraction used by SIQSStage.
 """
 
 from __future__ import annotations
 
 import math
 from typing import Any
+
+from factorise._utils import sieve_primes
+from factorise.core import is_prime
 
 
 def is_small_prime(candidate: int) -> bool:
@@ -24,8 +27,22 @@ def is_small_prime(candidate: int) -> bool:
         return False
     if candidate % 2 == 0:
         return candidate == 2
+    if candidate % 3 == 0:
+        return candidate == 3
+    if candidate % 5 == 0:
+        return candidate == 5
+    if candidate % 7 == 0:
+        return candidate == 7
+    # Check divisibility up to sqrt(candidate) / 2 since we already tested 2,3,5,7
     limit = int(candidate**0.5) + 1
-    return all(candidate % divisor != 0 for divisor in range(3, limit, 2))
+    divisor = 11
+    step = 2  # 11, 13, 17, 19, 23, 25(=5), ...
+    while divisor < limit:
+        if candidate % divisor == 0:
+            return False
+        divisor += step
+        step = 4 if step == 2 else 2  # alternate between +2 and +4
+    return True
 
 
 def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
@@ -67,10 +84,11 @@ def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
     if remaining == 1:
         return exponents
 
-    if remaining in prime_base:
-        index = prime_base.index(remaining)
-        exponents[index] += 1
-        return exponents
+    # Check if remaining is in prime_base using index lookup
+    for idx, p in enumerate(prime_base):
+        if p == remaining:
+            exponents[idx] += 1
+            return exponents
 
     return None
 
@@ -79,66 +97,82 @@ def find_dependency(
     relations: list[dict[str, Any]],
     num_primes: int,
 ) -> list[int] | None:
-    """Find a linear dependency among relations using Gaussian elimination over GF(2).
+    """Find a linear dependency via Gaussian elimination over GF(2).
 
-    Trivial relations (all even exponents) are filtered out before elimination
-    because they produce x == y (mod n) and never yield a non-trivial factor.
+    Returns a list of relation indices that form the dependency, or None.
 
     Args:
-        relations: A list of relation dictionaries, each containing an
-            "exponents" key mapping to a list of integer exponents.
-        num_primes: The size of the prime base.
+        relations: List of relation dicts with "exponents" key.
+        num_primes: Size of the prime base.
 
     Returns:
-        A binary indicator vector showing which relations participate in the
-        dependency, or None if no dependency is found.
+        List of relation indices in the dependency, or None.
 
     """
-    non_trivial = [
-        rel for rel in relations
-        if any(exp % 2 == 1 for exp in rel["exponents"])
-    ]
+    # Filter to non-trivial relations (have at least one odd exponent)
+    non_trivial: list[tuple[int, list[int]]] = []
+    for idx, rel in enumerate(relations):
+        if any(exp % 2 == 1 for exp in rel["exponents"]):
+            non_trivial.append((idx, rel["exponents"]))
+
     if len(non_trivial) < num_primes:
         return None
 
-    rows: list[list[int]] = []
-    for index, rel in enumerate(non_trivial):
+    # Build rows: (mask, history_bitmask, original_index)
+    rows: list[tuple[int, int, int]] = []
+    for orig_idx, rel_exp in non_trivial:
         mask = 0
-        for j, exp in enumerate(rel["exponents"]):
-            if exp % 2 == 1:
+        for j, exp in enumerate(rel_exp):
+            if exp & 1:
                 mask |= 1 << j
-        history = 1 << index
-        rows.append([mask, history])
+        if mask == 0:
+            continue
+        history = 1 << len(rows)
+        rows.append((mask, history, orig_idx))
 
-    row_index = 0
+    if len(rows) < num_primes:
+        return None
+
+    # Forward elimination
+    row_idx = 0
+    num_rows = len(rows)
     for col in range(num_primes):
+        # Find pivot
         pivot = -1
-        for r in range(row_index, len(rows)):
+        for r in range(row_idx, num_rows):
             if (rows[r][0] >> col) & 1:
                 pivot = r
                 break
         if pivot == -1:
             continue
 
-        rows[row_index], rows[pivot] = rows[pivot], rows[row_index]
+        # Swap
+        rows[row_idx], rows[pivot] = rows[pivot], rows[row_idx]
 
-        for r in range(len(rows)):
-            if r != row_index and ((rows[r][0] >> col) & 1):
-                rows[r][0] ^= rows[row_index][0]
-                rows[r][1] ^= rows[row_index][1]
+        # Eliminate
+        for r in range(num_rows):
+            if r != row_idx and ((rows[r][0] >> col) & 1):
+                rows[r] = (rows[r][0] ^ rows[row_idx][0],
+                           rows[r][1] ^ rows[row_idx][1],
+                           rows[r][2])
 
-        row_index += 1
-        if row_index >= len(rows):
+        row_idx += 1
+        if row_idx >= num_rows:
             break
 
-    for row in rows:
-        mask, history = row
+    # Back-substitution: find zero-mask row with non-zero history
+    for mask, history, orig_idx in rows:
         if mask == 0 and history != 0:
-            vector = [0] * len(non_trivial)
-            for bit in range(len(non_trivial)):
-                if (history >> bit) & 1:
-                    vector[bit] = 1
-            return vector
+            # Extract which non-trivial relations combine to zero
+            result: list[int] = []
+            h = history
+            bit = 0
+            while h:
+                if h & 1:
+                    result.append(non_trivial[bit][0])
+                h >>= 1
+                bit += 1
+            return result
 
     return None
 
@@ -151,30 +185,32 @@ def extract_factor(
 ) -> int | None:
     """Extract a non-trivial factor from a dependency.
 
-    Computes x = product(a_i) and y = product(p_j^(e_j/2)) over the
-    selected relations, then returns gcd(x +/- y, n) if non-trivial.
-
     Args:
         n: The composite integer being factored.
-        relations: A list of relation dictionaries containing "a" and
-            "exponents" keys.
-        dependency: A binary vector indicating which relations to combine.
+        relations: List of relation dicts containing "a" and "exponents".
+        dependency: List of relation indices forming the dependency.
         prime_base: The prime base used for factorization.
 
     Returns:
         A non-trivial factor of n if one is found, otherwise None.
 
     """
+    if not dependency:
+        return None
+
+    # Build set of dependency indices for O(1) lookup
+    dep_set = set(dependency)
+
     product_x = 1
     product_y = 1
-    for index, rel in enumerate(relations):
-        if not dependency[index]:
+    for idx, rel in enumerate(relations):
+        if idx not in dep_set:
             continue
         product_x = (product_x * rel["a"]) % n
-        for prime_index, exp in enumerate(rel["exponents"]):
+        for prime_idx, exp in enumerate(rel["exponents"]):
             if exp <= 0:
                 continue
-            prime = prime_base[prime_index]
+            prime = prime_base[prime_idx]
             if prime == -1:
                 continue
             product_y = (product_y * pow(prime, exp // 2, n)) % n

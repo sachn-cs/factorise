@@ -1,21 +1,58 @@
-"""CLI error handling and logging-mode tests."""
+"""CLI error handling and logging-mode tests — standard library only."""
 
-import json
 import signal
 from unittest.mock import patch
 
-import pytest
-from loguru import logger
-from typer.testing import CliRunner
-
-from factorise.cli import app
 from factorise.cli import configure_logging
 from factorise.cli import handle_signal
-from factorise.core import FactorisationError
+from factorise.cli import main
 
-CLI_RUNNER: CliRunner = CliRunner()
-CLI_INPUT: str = "123"
-SIMULATION_VAL: str = "Simulation"
+
+class _Result:
+    """Minimal fake FactorisationResult for testing display."""
+    __slots__ = ("original", "sign", "factors", "powers", "is_prime")
+
+    def __init__(
+        self,
+        original: int,
+        factors: list[int],
+        powers: dict[int, int],
+        is_prime: bool,
+    ) -> None:
+        self.original = original
+        self.sign = 1
+        self.factors = factors
+        self.powers = powers
+        self.is_prime = is_prime
+
+    def expression(self) -> str:
+        terms = [
+            f"{p}^{e}" if e > 1 else str(p)
+            for p, e in sorted(self.powers.items())
+        ]
+        return " * ".join(terms)
+
+
+def _run_main(argv: list[str]) -> tuple[int, str, str]:
+    """Run main() with argv, capture stdout/stderr, return (exit_code, stdout, stderr)."""
+    import sys
+    from io import StringIO
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    stdout_buf = StringIO()
+    stderr_buf = StringIO()
+    try:
+        sys.stdout = stdout_buf
+        sys.stderr = stderr_buf
+        try:
+            main(argv)
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if isinstance(e.code, int) else 1
+        return exit_code, stdout_buf.getvalue(), stderr_buf.getvalue()
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr
 
 
 def test_cli_handle_signal() -> None:
@@ -31,90 +68,58 @@ def test_cli_handle_signal() -> None:
 def test_cli_logging_configuration_verification() -> None:
     """Verify that configure_logging accepts valid levels without error."""
     configure_logging("DEBUG")
-    configure_logging("warning")
+    configure_logging("WARNING")
 
 
 def test_cli_error_handling_type_error() -> None:
     """Verify that TypeError in the core library is caught as an Input Error."""
-    with patch("factorise.cli.factorise",
-               side_effect=TypeError(SIMULATION_VAL)):
-        result = CLI_RUNNER.invoke(app, [CLI_INPUT])
-        assert result.exit_code == 1
-        assert "Input Error" in result.output
+    with patch("factorise.cli.factorise", side_effect=TypeError("not an int")):
+        exit_code, stdout, stderr = _run_main(["123"])
+        assert exit_code == 1
+        assert "Input Error" in stderr
 
 
 def test_cli_error_handling_runtime_error() -> None:
     """Verify that FactorisationError is caught as a Runtime Error."""
+    from factorise.core import FactorisationError
     with patch(
-            "factorise.cli.factorise",
-            side_effect=FactorisationError(SIMULATION_VAL),
+        "factorise.cli.factorise",
+        side_effect=FactorisationError("simulated failure"),
     ):
-        result = CLI_RUNNER.invoke(app, [CLI_INPUT])
-        assert result.exit_code == 1
-        assert "Runtime Error" in result.output
+        exit_code, stdout, stderr = _run_main(["123"])
+        assert exit_code == 1
+        assert "Runtime Error" in stderr
 
 
 def test_cli_error_handling_invalid_log_level() -> None:
-    """Verify that invalid log levels result in a Configuration Error."""
-    result = CLI_RUNNER.invoke(app, [CLI_INPUT, "--log-level", "TRACE"])
-    assert result.exit_code == 1
-    assert "Configuration Error" in result.output
-
-
-def test_cli_error_handling_invalid_log_format() -> None:
-    """Verify that invalid log formats result in a Configuration Error."""
-    result = CLI_RUNNER.invoke(app, [CLI_INPUT, "--log-format", "yaml"])
-    assert result.exit_code == 1
-    assert "Configuration Error" in result.output
-
-
-def test_json_logging_output_shape(capsys: pytest.CaptureFixture[str],
-                                   monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("FACTORISE_REQUEST_ID", "req-env")
-    configure_logging("INFO", "json")
-    logger.bind(correlation_id="corr-1",
-                trace_id="trace-1").info("json-shape-check")
-    payload = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
-
-    assert payload["message"] == "json-shape-check"
-    assert payload["request_id"] == "req-env"
-    assert payload["correlation_id"] == "corr-1"
-    assert payload["trace_id"] == "trace-1"
-    for field in (
-            "timestamp",
-            "level",
-            "logger",
-            "module",
-            "function",
-            "line_number",
-            "process_id",
-            "thread_id",
-    ):
-        assert field in payload
-    assert "span_id" not in payload
-    assert "session_id" not in payload
-
-
-def test_json_logging_exception_payload(
-    capsys: pytest.CaptureFixture[str],) -> None:
-    configure_logging("ERROR", "json")
-    try:
-        raise ValueError("boom")
-    except ValueError:
-        logger.exception("json-exception-check")
-    payload = json.loads(capsys.readouterr().err.strip().splitlines()[-1])
-
-    assert payload["message"] == "json-exception-check"
-    assert "exception" in payload
-    assert payload["exception"]["type"] == "ValueError"
-    assert payload["exception"]["message"] == "boom"
-    assert "stacktrace" in payload["exception"]
+    """Verify that invalid log levels result in exit code 2 from argparse."""
+    exit_code, stdout, stderr = _run_main(["123", "--log-level", "TRACE"])
+    # argparse exits with 2 for invalid choice
+    assert exit_code == 2
 
 
 def test_cli_error_handling_value_error() -> None:
     """Verify that ValueError is caught as a Value Error in the CLI."""
-    with patch("factorise.cli.factorise",
-               side_effect=ValueError(SIMULATION_VAL)):
-        result = CLI_RUNNER.invoke(app, [CLI_INPUT])
-        assert result.exit_code == 1
-        assert "Value Error" in result.output
+    with patch("factorise.cli.factorise", side_effect=ValueError("bad value")):
+        exit_code, stdout, stderr = _run_main(["123"])
+        assert exit_code == 1
+        assert "Value Error" in stderr
+
+
+def test_cli_main_invalid_input_value() -> None:
+    """Hit the ValueError catch block in cli.main (e.g. invalid config from env)."""
+    with patch(
+        "factorise.cli.FactoriserConfig.from_env",
+        side_effect=ValueError("bad config"),
+    ):
+        exit_code, stdout, stderr = _run_main(["8051"])
+        assert exit_code == 1
+        assert "Value Error" in stderr
+
+
+def test_cli_main_type_error_catch() -> None:
+    """Hit the TypeError catch block in cli.main."""
+    with patch("factorise.cli.factorise", side_effect=TypeError("not an int")):
+        exit_code, stdout, stderr = _run_main(["8051"])
+        assert exit_code == 1
+        assert "Input Error" in stderr

@@ -12,28 +12,29 @@ from __future__ import annotations
 
 __all__ = ["HybridFactorisationEngine", "hybrid_factorise"]
 
+import logging
 from collections import Counter
 
-from loguru import logger
-
 from factorise.config import HybridConfig
-from factorise.core import EXTENDED_SMALL_PRIMES
-from factorise.core import FactorisationError
-from factorise.core import FactorisationResult
-from factorise.core import ensure_integer_input
-from factorise.core import find_perfect_power
-from factorise.core import has_carmichael_property
-from factorise.core import is_prime
+from factorise.core import (
+    EXTENDED_SMALL_PRIMES,
+    FactorisationError,
+    FactorisationResult,
+    ensure_integer_input,
+    find_perfect_power,
+    has_carmichael_property,
+    is_prime,
+)
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageStatus
 from factorise.stages.ecm_two_pass import TwoPassECMStage
-from factorise.stages.gnfs import GNFSStage
+from factorise.stages.gnfs_optimized import OptimizedGNFSStage
 from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
 from factorise.stages.pollard_rho import PollardRhoStage
 from factorise.stages.siqs import SIQSStage
 from factorise.stages.trial_division import OptimizedTrialDivisionStage
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 
 class HybridFactorisationEngine:
@@ -68,16 +69,14 @@ class HybridFactorisationEngine:
             second_pass_bound=self._config.ecm_second_pass_bound,
         )
         self._siqs_stage = SIQSStage(
-            max_bit_length=self._config.siqs_max_bit_length,)
+            max_bit_length=self._config.siqs_max_bit_length,
+        )
         self._rho_stage = PollardRhoStage(
             max_retries=self._config.rho_max_retries,
             max_iterations=self._config.rho_max_iterations,
             batch_size=self._config.rho_batch_size,
         )
-        self._gnfs_stage = GNFSStage(
-            binary=self._config.gnfs_external_tool_name,
-            timeout_seconds=self._config.gnfs_timeout_seconds,
-        )
+        self._gnfs_stage = OptimizedGNFSStage()
         self._stage_map: dict[str, FactorStage] = {
             "trial_division": self._trial_stage,
             "improved_pollard_pminus1": self._pm1_stage,
@@ -174,10 +173,7 @@ class HybridFactorisationEngine:
             )
 
         if self._config.carmichael_check and has_carmichael_property(abs_n):
-            logger.info(
-                "n={n} is Carmichael, proceeding with factorisation",
-                n=n,
-            )
+            _LOG.info("n=%d is Carmichael, proceeding with factorisation", n)
 
         if abs_n % 2 == 0:
             cofactor = abs_n // 2
@@ -215,13 +211,6 @@ class HybridFactorisationEngine:
                 discovered_primes.append(cofactor)
             else:
                 composite_stack.append(cofactor)
-
-            if len(composite_stack) > 1:
-                max_idx = composite_stack.index(max(composite_stack))
-                composite_stack[max_idx], composite_stack[-1] = (
-                    composite_stack[-1],
-                    composite_stack[max_idx],
-                )
 
         counts = Counter(discovered_primes)
         factors = sorted(counts.keys())

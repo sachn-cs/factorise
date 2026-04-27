@@ -6,8 +6,8 @@ The pipeline attempts factorisation using progressively more powerful algorithms
 2. Pollard p-1 — finds factors where p-1 is smooth.
 3. Pollard's Rho (Brent) — general-purpose.
 4. ECM — modern, general-purpose.
-5. Quadratic Sieve — fast for medium-to-large inputs.
-6. GNFS — external tool adapter for very large inputs.
+5. SIQS — self-initializing quadratic sieve for medium-to-large inputs.
+6. GNFS — pure-Python for large inputs (capped at 128-bit).
 
 Each stage exposes a common interface (FactorStage) and emits a structured result
 (StageResult). Stages are composable: the pipeline feeds non-trivial composite
@@ -16,27 +16,14 @@ parts back into earlier stages until everything is prime.
 
 from __future__ import annotations
 
-__all__ = [
-    "FactorStage",
-    "FactorisationPipeline",
-    "PipelineConfig",
-    "PollardPMinusOneStage",
-    "StageFactory",
-    "StageResult",
-    "StageStatus",
-    "yield_prime_factors_via_pipeline",
-]
-
 import dataclasses
 import enum
-import importlib
+import logging
 import math
 import time
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Generator
-
-from loguru import logger
 
 from factorise.config import FactoriserConfig
 from factorise.config import PipelineConfig
@@ -45,6 +32,18 @@ from factorise.core import FactorisationError
 from factorise.core import ensure_integer_input
 from factorise.core import find_nontrivial_factor_pollard_brent
 from factorise.core import is_prime
+
+_LOG = logging.getLogger("factorise")
+
+__all__ = [
+    "FactorStage",
+    "FactorisationPipeline",
+    "PollardPMinusOneStage",
+    "StageFactory",
+    "StageResult",
+    "StageStatus",
+    "yield_prime_factors_via_pipeline",
+]
 
 # ---------------------------------------------------------------------------
 # Stage result types
@@ -169,12 +168,9 @@ class PollardPMinusOneStage(FactorStage):
             a = pow(base, self._bound, n)
             g = math.gcd(a - 1, n)
             if 1 < g < n:
-                logger.debug(
-                    "stage={stage} n={n} factor={factor} base={base}",
-                    stage=self.name,
-                    n=n,
-                    factor=g,
-                    base=base,
+                _LOG.debug(
+                    "stage=%s n=%d factor=%d base=%d",
+                    self.name, n, g, base,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -191,84 +187,6 @@ class PollardPMinusOneStage(FactorStage):
             elapsed_ms=elapsed_ms(start),
             reason=f"no factor found with bound={self._bound}",
         )
-
-
-# ---------------------------------------------------------------------------
-# Stage factory
-# ---------------------------------------------------------------------------
-
-
-class StageFactory:
-    """Explicit factory that constructs stage instances from a PipelineConfig.
-
-    Replaces the previous global StageRegistry metaclass. Each pipeline owns
-    its own factory, making stage availability explicit and testable.
-    """
-
-    def __init__(self, config: PipelineConfig) -> None:
-        """Initialise the factory from a pipeline config.
-
-        Args:
-            config: The pipeline configuration defining enabled stages.
-
-        """
-        self._config = config
-        self._stages: dict[str, FactorStage] = {}
-        self._build_stages()
-
-    def _build_stages(self) -> None:
-        """Instantiate stage handlers based on the configured stage order."""
-        for name in self._config.enabled_stages():
-            if name == "trial_division":
-                mod = importlib.import_module("factorise.stages.trial_division")
-                cls = mod.OptimizedTrialDivisionStage
-                self._stages[name] = cls(
-                    bound=self._config.trial_division_bound,
-                    prime_table=EXTENDED_SMALL_PRIMES,
-                )
-            elif name == "pollard_pminus1":
-                self._stages[name] = PollardPMinusOneStage(
-                    bound=self._config.pm1_bound,)
-            elif name == "pollard_rho":
-                mod = importlib.import_module("factorise.stages.pollard_rho")
-                cls = mod.PollardRhoStage
-                self._stages[name] = cls(
-                    max_retries=self._config.max_retries,
-                    max_iterations=self._config.max_iterations,
-                    batch_size=self._config.batch_size,
-                    seed=self._config.seed,
-                )
-            elif name == "ecm":
-                mod = importlib.import_module("factorise.stages.ecm")
-                cls = mod.ECMStage
-                self._stages[name] = cls(
-                    curves=self._config.ecm_curves,
-                    bound=self._config.bound_medium,
-                )
-            elif name == "quadratic_sieve":
-                mod = importlib.import_module(
-                    "factorise.stages.quadratic_sieve")
-                cls = mod.QuadraticSieveStage
-                self._stages[name] = cls()
-            elif name == "gnfs":
-                mod = importlib.import_module("factorise.stages.gnfs")
-                cls = mod.GNFSStage
-                self._stages[name] = cls(
-                    binary=self._config.gnfs_binary,
-                    timeout_seconds=self._config.gnfs_timeout,
-                )
-
-    def get(self, name: str) -> FactorStage | None:
-        """Look up a stage instance by canonical name."""
-        return self._stages.get(name)
-
-    def names(self) -> list[str]:
-        """Return all registered stage names."""
-        return list(self._stages.keys())
-
-    def stage_map(self) -> dict[str, FactorStage]:
-        """Return a shallow copy of the internal stage mapping."""
-        return dict(self._stages)
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +214,47 @@ class FactorisationPipeline:
 
         """
         self._config = config if config is not None else PipelineConfig()
-        self._factory = StageFactory(self._config)
+        self._stage_map = self._build_stage_map()
+
+    def _build_stage_map(self) -> dict[str, FactorStage]:
+        """Build the stage map from the configured stage order."""
+        from factorise.stages.pollard_rho import PollardRhoStage
+        from factorise.stages.trial_division import OptimizedTrialDivisionStage
+        from factorise.stages.improved_pm1 import ImprovedPollardPMinusOneStage
+        from factorise.stages.ecm_two_pass import TwoPassECMStage
+        from factorise.stages.siqs import SIQSStage
+        from factorise.stages.gnfs_optimized import OptimizedGNFSStage
+
+        stages: dict[str, FactorStage] = {}
+        for name in self._config.enabled_stages():
+            if name == "trial_division":
+                stages[name] = OptimizedTrialDivisionStage(
+                    bound=self._config.trial_division_bound,
+                    prime_table=EXTENDED_SMALL_PRIMES,
+                )
+            elif name == "pollard_pminus1":
+                stages[name] = ImprovedPollardPMinusOneStage(
+                    bounds=(self._config.pm1_bound,),
+                )
+            elif name == "pollard_rho":
+                stages[name] = PollardRhoStage(
+                    max_retries=self._config.max_retries,
+                    max_iterations=self._config.max_iterations,
+                    batch_size=self._config.batch_size,
+                    seed=self._config.seed,
+                )
+            elif name == "ecm":
+                from factorise.stages.ecm import ECMStage
+                stages[name] = ECMStage(
+                    curves=self._config.ecm_curves,
+                    bound=self._config.bound_medium,
+                )
+            elif name == "quadratic_sieve":
+                from factorise.stages.quadratic_sieve import QuadraticSieveStage
+                stages[name] = QuadraticSieveStage()
+            elif name == "gnfs":
+                stages[name] = OptimizedGNFSStage()
+        return stages
 
     @property
     def config(self) -> PipelineConfig:
@@ -306,7 +264,7 @@ class FactorisationPipeline:
     @property
     def stages(self) -> dict[str, FactorStage]:
         """Return a shallow copy of the internal stage mapping."""
-        return self._factory.stage_map()
+        return dict(self._stage_map)
 
     def attempt(self, n: int) -> StageResult:
         """Attempt to fully factor *n* using the configured stage pipeline.
@@ -345,19 +303,15 @@ class FactorisationPipeline:
 
         failures: list[str] = []
         for stage_name in self._config.enabled_stages():
-            stage = self._factory.get(stage_name)
+            stage = self._stage_map.get(stage_name)
             if stage is None:
                 continue
 
             result = stage.attempt(n)
-            logger.debug(
-                "stage={stage} n={n} status={status} factor={factor} "
-                "elapsed_ms={elapsed_ms:.2f}",
-                stage=stage_name,
-                n=n,
-                status=result.status.value,
-                factor=result.factor,
-                elapsed_ms=result.elapsed_ms,
+            _LOG.debug(
+                "stage=%s n=%d status=%s factor=%s elapsed_ms=%.2f",
+                stage_name, n, result.status.value, result.factor,
+                result.elapsed_ms,
             )
 
             if (result.status is StageStatus.SUCCESS and
@@ -373,7 +327,8 @@ class FactorisationPipeline:
             if result.status is not StageStatus.SKIPPED:
                 failures.append(
                     f"{stage_name}({result.status.value}): "
-                    f"{result.reason or 'unknown'}",)
+                    f"{result.reason or 'unknown'}",
+                )
 
         return StageResult(
             stage_name="pipeline",
@@ -423,14 +378,11 @@ def yield_prime_factors_via_pipeline(
         result = pipeline.attempt(current)
         if result.status is StageStatus.SUCCESS and result.factor is not None:
             d = result.factor
-            logger.debug("pipeline split n={n} d={d}", n=current, d=d)
+            _LOG.debug("pipeline split n=%d d=%d", current, d)
             stack.append(d)
             stack.append(current // d)
         elif result.status is StageStatus.FAILURE:
-            logger.warning(
-                "pipeline failed for n={n}, falling back to pollard_brent",
-                n=current,
-            )
+            _LOG.warning("pipeline failed for n=%d, falling back", current)
             try:
                 d = find_nontrivial_factor_pollard_brent(current, config)
                 stack.append(d)
@@ -438,8 +390,10 @@ def yield_prime_factors_via_pipeline(
             except FactorisationError as exc:
                 raise FactorisationError(
                     f"All stages failed for n={current}; "
-                    "input may be prime or require GNFS",) from exc
+                    "input may be prime or require GNFS",
+                ) from exc
         else:
             raise FactorisationError(
                 f"Pipeline returned unexpected status {result.status} "
-                f"for composite n={current}",)
+                f"for composite n={current}",
+            )

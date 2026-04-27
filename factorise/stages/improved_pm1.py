@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import time
-
-from loguru import logger
 
 from factorise.core import ensure_integer_input
 from factorise.pipeline import FactorStage
@@ -13,7 +12,7 @@ from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
 from factorise.pipeline import elapsed_ms
 
-logger.disable("factorise")
+_LOG = logging.getLogger("factorise")
 
 
 class ImprovedPollardPMinusOneStage(FactorStage):
@@ -23,7 +22,7 @@ class ImprovedPollardPMinusOneStage(FactorStage):
     Uses nested iteration over bases and increasing bounds.
     """
 
-    name = "improved_pollard_pminus1"
+    name = "pollard_pminus1"
 
     def __init__(
         self,
@@ -60,13 +59,9 @@ class ImprovedPollardPMinusOneStage(FactorStage):
                 a = pow(base, bound, n)
                 g = math.gcd(a - 1, n)
                 if 1 < g < n:
-                    logger.debug(
-                        "stage={stage} n={n} factor={factor} bound={bound} base={base}",
-                        stage=self.name,
-                        n=n,
-                        factor=g,
-                        bound=bound,
-                        base=base,
+                    _LOG.debug(
+                        "stage=%s n=%d factor=%d bound=%d base=%d",
+                        self.name, n, g, bound, base,
                     )
                     return StageResult(
                         stage_name=self.name,
@@ -78,10 +73,9 @@ class ImprovedPollardPMinusOneStage(FactorStage):
                 if g == n:
                     continue
 
-        logger.debug(
-            "stage={stage} n={n} status=FAILURE reason=no_smooth_factor",
-            stage=self.name,
-            n=n,
+        _LOG.debug(
+            "stage=%s n=%d status=FAILURE reason=no_smooth_factor",
+            self.name, n,
         )
         return StageResult(
             stage_name=self.name,
