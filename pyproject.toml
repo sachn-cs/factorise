@@ -115,3 +115,4 @@ force-single-line = true
 "benchmarks/*" = ["F401", "B018", "T201"]
 "factorise/cli.py" = ["T201"]
 "scratch/*" = ["T201"]
+"tests/test_coverage_extensions.py" = ["B009", "B010"]

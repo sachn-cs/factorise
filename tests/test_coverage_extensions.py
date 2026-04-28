@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from collections.abc import Callable
 
 import pytest
 
@@ -81,15 +82,18 @@ def test_cli_main_runpy() -> None:
 def test_main_configure_logging_value_error() -> None:
     """Verify main catches ValueError from configure_logging."""
     import factorise.cli as cli_module
-    original = cli_module.configure_logging
-    cli_module.configure_logging = lambda level: (_ for _ in
-                                                  ()).throw(ValueError("bad"))
+    original = getattr(cli_module, "configure_logging")
+
+    def _bad_configure_logging(_level: str) -> None:
+        raise ValueError("bad")
+
+    setattr(cli_module, "configure_logging", _bad_configure_logging)
     try:
         with pytest.raises(SystemExit) as exc_info:
             main(["123", "--log-level", "DEBUG"])
         assert exc_info.value.code == 1
     finally:
-        cli_module.configure_logging = original
+        setattr(cli_module, "configure_logging", original)
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +165,7 @@ def test_hybrid_factorise_stack_composite_factor_and_cofactor() -> None:
     """Verify factorise_stack handles composite factor and cofactor."""
     engine = HybridFactorisationEngine()
     # Monkey-patch select_algorithm to return a composite factor first
-    original = engine.select_algorithm
+    original: Callable[[int], int | None] = getattr(engine, "select_algorithm")
     call_count = 0
 
     def fake_select(n: int) -> int | None:
@@ -173,7 +177,7 @@ def test_hybrid_factorise_stack_composite_factor_and_cofactor() -> None:
             return 15  # composite factor, cofactor = 24 (composite)
         return original(n)
 
-    engine.select_algorithm = fake_select
+    setattr(engine, "select_algorithm", fake_select)
     try:
         # 45 = 3 * 3 * 5; first fake return: 15 (composite), cofactor 3 (prime)
         factors, powers = engine.factorise_stack(45)
@@ -185,7 +189,7 @@ def test_hybrid_factorise_stack_composite_factor_and_cofactor() -> None:
         assert 3 in factors
         assert 5 in factors
     finally:
-        engine.select_algorithm = original
+        setattr(engine, "select_algorithm", original)
 
 
 # ---------------------------------------------------------------------------
@@ -241,7 +245,7 @@ def test_yield_prime_factors_unexpected_status() -> None:
     config = FactoriserConfig(max_iterations=1, max_retries=1, batch_size=2)
     # Monkey-patch pipeline to return an unexpected status
     from factorise import pipeline as pipeline_module
-    original_attempt = pipeline_module.FactorisationPipeline.attempt
+    original_attempt = getattr(pipeline_module.FactorisationPipeline, "attempt")
 
     def fake_attempt(self, n: int):
         return StageResult(
@@ -252,12 +256,12 @@ def test_yield_prime_factors_unexpected_status() -> None:
             reason="fake",
         )
 
-    pipeline_module.FactorisationPipeline.attempt = fake_attempt
+    setattr(pipeline_module.FactorisationPipeline, "attempt", fake_attempt)
     try:
         with pytest.raises(FactorisationError):
             list(yield_prime_factors_via_pipeline(91, config))
     finally:
-        pipeline_module.FactorisationPipeline.attempt = original_attempt
+        setattr(pipeline_module.FactorisationPipeline, "attempt", original_attempt)
 
 
 # ---------------------------------------------------------------------------
@@ -269,14 +273,18 @@ def test_ecm_stage_success_in_curve_loop() -> None:
     """Verify ECM stage success path inside the curve loop."""
     stage = ECMStage(curves=2, bound=100)
     # Monkey-patch run_curve to force success path
-    original = stage.run_curve
-    stage.run_curve = lambda n, seed, primes: 7 if seed == 0 else None
+    original = getattr(stage, "run_curve")
+    setattr(
+        stage,
+        "run_curve",
+        lambda n, curve_seed, primes: 7 if curve_seed == 0 else None,
+    )
     try:
         result = stage.attempt(91)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 7
     finally:
-        stage.run_curve = original
+        setattr(stage, "run_curve", original)
 
 
 # ---------------------------------------------------------------------------
@@ -332,14 +340,18 @@ def test_ecm_two_pass_stage1_success() -> None:
         second_pass_curves=2,
         second_pass_bound=100,
     )
-    original = stage.run_curve
-    stage.run_curve = lambda n, seed, primes: 7 if seed == 0 else None
+    original = getattr(stage, "run_curve")
+    setattr(
+        stage,
+        "run_curve",
+        lambda n, curve_seed, primes: 7 if curve_seed == 0 else None,
+    )
     try:
         result = stage.attempt(91)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 7
     finally:
-        stage.run_curve = original
+        setattr(stage, "run_curve", original)
 
 
 def test_ecm_two_pass_stage2_success() -> None:
@@ -350,7 +362,7 @@ def test_ecm_two_pass_stage2_success() -> None:
         second_pass_curves=2,
         second_pass_bound=100,
     )
-    original = stage.run_curve
+    original = getattr(stage, "run_curve")
     # Force stage 2 to find a factor
     call_count = 0
 
@@ -361,13 +373,13 @@ def test_ecm_two_pass_stage2_success() -> None:
             return 13
         return None
 
-    stage.run_curve = fake_run_curve
+    setattr(stage, "run_curve", fake_run_curve)
     try:
         result = stage.attempt(91)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 13
     finally:
-        stage.run_curve = original
+        setattr(stage, "run_curve", original)
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +420,7 @@ def test_gnfs_attempt_failure() -> None:
 def test_gnfs_auto_scale_above_128_bits() -> None:
     """Verify __auto_scale returns (0,0,0) above 128 bits."""
     stage = OptimizedGNFSStage()
-    auto = stage._GNFSStage__auto_scale(200)
+    auto = getattr(stage, "_GNFSStage__auto_scale")(200)
     assert auto == (0, 0, 0)
 
 
@@ -416,57 +428,57 @@ def test_gnfs_find_factor_bound_zero() -> None:
     """Verify __find_factor returns None when auto_scale gives (0,0,0)."""
     stage = OptimizedGNFSStage()
     # Monkey-patch auto_scale to return zeros
-    original = stage._GNFSStage__auto_scale
-    stage._GNFSStage__auto_scale = lambda bit_len: (0, 0, 0)
+    original = getattr(stage, "_GNFSStage__auto_scale")
+    setattr(stage, "_GNFSStage__auto_scale", lambda _bit_len: (0, 0, 0))
     try:
-        result = stage._GNFSStage__find_factor(91)
+        result = getattr(stage, "_GNFSStage__find_factor")(91)
         assert result is None
     finally:
-        stage._GNFSStage__auto_scale = original
+        setattr(stage, "_GNFSStage__auto_scale", original)
 
 
 def test_gnfs_find_factor_attempt_gt_0() -> None:
     """Verify __find_factor with attempt > 0 path."""
     stage = OptimizedGNFSStage()
-    original_attempts = stage._GNFSStage__max_attempts
-    stage._GNFSStage__max_attempts = 2
+    original_attempts = getattr(stage, "_GNFSStage__max_attempts")
+    setattr(stage, "_GNFSStage__max_attempts", 2)
     try:
-        result = stage._GNFSStage__find_factor(91)
+        result = getattr(stage, "_GNFSStage__find_factor")(91)
         # May succeed or fail
         assert result is None or isinstance(result, int)
     finally:
-        stage._GNFSStage__max_attempts = original_attempts
+        setattr(stage, "_GNFSStage__max_attempts", original_attempts)
 
 
 def test_gnfs_find_factor_relations_lt_num_cols() -> None:
     """Verify __find_factor returns None when relations < num_cols."""
     stage = OptimizedGNFSStage()
     # Force tiny parameters so no relations are found
-    original_auto = stage._GNFSStage__auto_scale
-    stage._GNFSStage__auto_scale = lambda bit_len: (2, 2, 2)
+    original_auto = getattr(stage, "_GNFSStage__auto_scale")
+    setattr(stage, "_GNFSStage__auto_scale", lambda _bit_len: (2, 2, 2))
     try:
-        result = stage._GNFSStage__find_factor(91)
+        result = getattr(stage, "_GNFSStage__find_factor")(91)
         assert result is None
     finally:
-        stage._GNFSStage__auto_scale = original_auto
+        setattr(stage, "_GNFSStage__auto_scale", original_auto)
 
 
 def test_gnfs_find_factor_dependency_none() -> None:
     """Verify __find_factor returns None when dependency is None."""
     stage = OptimizedGNFSStage()
-    original_find_dep = stage._GNFSStage__find_dependency
-    stage._GNFSStage__find_dependency = lambda rels, cols: None
+    original_find_dep = getattr(stage, "_GNFSStage__find_dependency")
+    setattr(stage, "_GNFSStage__find_dependency", lambda _rels, _cols: None)
     try:
-        result = stage._GNFSStage__find_factor((2**31 + 127)**2,)
+        result = getattr(stage, "_GNFSStage__find_factor")((2**31 + 127)**2)
         assert result is None
     finally:
-        stage._GNFSStage__find_dependency = original_find_dep
+        setattr(stage, "_GNFSStage__find_dependency", original_find_dep)
 
 
 def test_gnfs_lattice_sieve_p_equals_2() -> None:
     """Verify __lattice_sieve skips p == 2."""
     stage = OptimizedGNFSStage()
-    relations = stage._GNFSStage__lattice_sieve(
+    relations = getattr(stage, "_GNFSStage__lattice_sieve")(
         91,
         4,
         [2, 3],
@@ -481,7 +493,7 @@ def test_gnfs_lattice_sieve_p_equals_2() -> None:
 def test_gnfs_lattice_sieve_roots_none() -> None:
     """Verify __lattice_sieve skips primes with no roots."""
     stage = OptimizedGNFSStage()
-    relations = stage._GNFSStage__lattice_sieve(
+    relations = getattr(stage, "_GNFSStage__lattice_sieve")(
         91,
         4,
         [2, 3],
@@ -496,7 +508,7 @@ def test_gnfs_lattice_sieve_roots_none() -> None:
 def test_gnfs_lattice_sieve_r_zero() -> None:
     """Verify __lattice_sieve skips r == 0."""
     stage = OptimizedGNFSStage()
-    relations = stage._GNFSStage__lattice_sieve(
+    relations = getattr(stage, "_GNFSStage__lattice_sieve")(
         91,
         4,
         [2, 3],
@@ -511,7 +523,7 @@ def test_gnfs_lattice_sieve_r_zero() -> None:
 def test_gnfs_lattice_sieve_append_relation() -> None:
     """Verify __lattice_sieve appends relations."""
     stage = OptimizedGNFSStage()
-    relations = stage._GNFSStage__lattice_sieve(
+    relations = getattr(stage, "_GNFSStage__lattice_sieve")(
         91,
         4,
         [2, 3, 5, 7],
@@ -526,7 +538,7 @@ def test_gnfs_lattice_sieve_append_relation() -> None:
 def test_gnfs_lattice_sieve_return_relations() -> None:
     """Verify __lattice_sieve returns relations list."""
     stage = OptimizedGNFSStage()
-    relations = stage._GNFSStage__lattice_sieve(
+    relations = getattr(stage, "_GNFSStage__lattice_sieve")(
         91,
         4,
         [2, 3],
@@ -541,7 +553,7 @@ def test_gnfs_lattice_sieve_return_relations() -> None:
 def test_gnfs_find_dependency_relations_lt_num_cols() -> None:
     """Verify __find_dependency returns None when relations < num_cols."""
     stage = OptimizedGNFSStage()
-    result = stage._GNFSStage__find_dependency([], 5)
+    result = getattr(stage, "_GNFSStage__find_dependency")([], 5)
     assert result is None
 
 
@@ -549,7 +561,7 @@ def test_gnfs_find_dependency_mask_zero() -> None:
     """Verify __find_dependency skips mask == 0."""
     stage = OptimizedGNFSStage()
     rels = [{"exponents": [0, 0, 0]}]
-    result = stage._GNFSStage__find_dependency(rels, 1)
+    result = getattr(stage, "_GNFSStage__find_dependency")(rels, 1)
     assert result is None
 
 
@@ -557,7 +569,7 @@ def test_gnfs_find_dependency_rows_lt_num_cols() -> None:
     """Verify __find_dependency returns None when rows < num_cols."""
     stage = OptimizedGNFSStage()
     rels = [{"exponents": [1, 0]}]
-    result = stage._GNFSStage__find_dependency(rels, 5)
+    result = getattr(stage, "_GNFSStage__find_dependency")(rels, 5)
     assert result is None
 
 
@@ -565,7 +577,7 @@ def test_gnfs_find_dependency_row_idx_break() -> None:
     """Verify __find_dependency breaks when row_idx >= num_rows."""
     stage = OptimizedGNFSStage()
     rels = [{"exponents": [1]}]
-    result = stage._GNFSStage__find_dependency(rels, 1)
+    result = getattr(stage, "_GNFSStage__find_dependency")(rels, 1)
     # May or may not find dependency; just ensure no crash
     assert result is None or isinstance(result, list)
 
@@ -574,14 +586,14 @@ def test_gnfs_find_dependency_return_none() -> None:
     """Verify __find_dependency returns None when no dependency found."""
     stage = OptimizedGNFSStage()
     rels = [{"exponents": [1, 0]}, {"exponents": [0, 1]}]
-    result = stage._GNFSStage__find_dependency(rels, 2)
+    result = getattr(stage, "_GNFSStage__find_dependency")(rels, 2)
     assert result is None or isinstance(result, list)
 
 
 def test_gnfs_extract_factor_rel_idx_oob() -> None:
     """Verify __extract_factor skips out-of-bounds relation indices."""
     stage = OptimizedGNFSStage()
-    result = stage._GNFSStage__extract_factor(
+    result = getattr(stage, "_GNFSStage__extract_factor")(
         91,
         4,
         [{
@@ -600,7 +612,7 @@ def test_gnfs_extract_factor_rel_idx_oob() -> None:
 def test_gnfs_extract_factor_return_none() -> None:
     """Verify __extract_factor returns None when no factor found."""
     stage = OptimizedGNFSStage()
-    result = stage._GNFSStage__extract_factor(
+    result = getattr(stage, "_GNFSStage__extract_factor")(
         91,
         4,
         [{
@@ -776,46 +788,50 @@ def test_quadratic_sieve_factor_found() -> None:
 def test_quadratic_sieve_prime_base_lt_2() -> None:
     """Verify __find_factor returns None when prime_base < 2."""
     stage = QuadraticSieveStage()
-    original_build = stage._QuadraticSieveStage__build_prime_base
-    stage._QuadraticSieveStage__build_prime_base = lambda n: [-1]
+    original_build = getattr(stage, "_QuadraticSieveStage__build_prime_base")
+    setattr(stage, "_QuadraticSieveStage__build_prime_base", lambda _n: [-1])
     try:
-        result = stage._QuadraticSieveStage__find_factor(91)
+        result = getattr(stage, "_QuadraticSieveStage__find_factor")(91)
         assert result is None
     finally:
-        stage._QuadraticSieveStage__build_prime_base = original_build
+        setattr(stage, "_QuadraticSieveStage__build_prime_base", original_build)
 
 
 def test_quadratic_sieve_relations_lt_base() -> None:
     """Verify __find_factor returns None when relations < len(prime_base)."""
     stage = QuadraticSieveStage()
-    original_relations = stage._QuadraticSieveStage__find_smooth_relations
-    stage._QuadraticSieveStage__find_smooth_relations = lambda n, pb: []
+    original_relations = getattr(stage, "_QuadraticSieveStage__find_smooth_relations")
+    setattr(stage, "_QuadraticSieveStage__find_smooth_relations", lambda _n, _pb: [])
     try:
-        result = stage._QuadraticSieveStage__find_factor(91)
+        result = getattr(stage, "_QuadraticSieveStage__find_factor")(91)
         assert result is None
     finally:
-        stage._QuadraticSieveStage__find_smooth_relations = original_relations
+        setattr(stage, "_QuadraticSieveStage__find_smooth_relations", original_relations)
 
 
 def test_quadratic_sieve_dependency_none() -> None:
     """Verify __find_factor returns None when dependency is None."""
     stage = QuadraticSieveStage()
     import factorise.stages.quadratic_sieve as qs_module
-    original_find_dep = qs_module.find_dependency
-    qs_module.find_dependency = lambda rels, num_primes: None
+    original_find_dep = getattr(qs_module, "find_dependency")
+    setattr(qs_module, "find_dependency", lambda _rels, _num_primes: None)
     # Ensure enough relations are returned to pass the len check
-    original_relations = stage._QuadraticSieveStage__find_smooth_relations
-    stage._QuadraticSieveStage__find_smooth_relations = lambda n, pb: [{
-        "a": 1,
-        "a2_mod_n": 1,
-        "exponents": [0] * len(pb)
-    } for _ in range(len(pb) + 1)]
+    original_relations = getattr(stage, "_QuadraticSieveStage__find_smooth_relations")
+    setattr(
+        stage,
+        "_QuadraticSieveStage__find_smooth_relations",
+        lambda _n, pb: [{
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0] * len(pb)
+        } for _ in range(len(pb) + 1)],
+    )
     try:
-        result = stage._QuadraticSieveStage__find_factor(91)
+        result = getattr(stage, "_QuadraticSieveStage__find_factor")(91)
         assert result is None
     finally:
-        qs_module.find_dependency = original_find_dep
-        stage._QuadraticSieveStage__find_smooth_relations = original_relations
+        setattr(qs_module, "find_dependency", original_find_dep)
+        setattr(stage, "_QuadraticSieveStage__find_smooth_relations", original_relations)
 
 
 def test_quadratic_sieve_return_relations() -> None:
@@ -823,28 +839,28 @@ def test_quadratic_sieve_return_relations() -> None:
     stage = QuadraticSieveStage()
     # Use a large prime base so target_count exceeds found relations
     import factorise.stages.quadratic_sieve as qs_module
-    original_extra = qs_module.RELATION_EXTRA_COUNT
-    qs_module.RELATION_EXTRA_COUNT = 1000
+    original_extra = getattr(qs_module, "RELATION_EXTRA_COUNT")
+    setattr(qs_module, "RELATION_EXTRA_COUNT", 1000)
     try:
-        relations = stage._QuadraticSieveStage__find_smooth_relations(
+        relations = getattr(stage, "_QuadraticSieveStage__find_smooth_relations")(
             91, [-1, 2, 3, 5])
         assert isinstance(relations, list)
         assert len(relations) < 1005  # didn't hit the early return
     finally:
-        qs_module.RELATION_EXTRA_COUNT = original_extra
+        setattr(qs_module, "RELATION_EXTRA_COUNT", original_extra)
 
 
 def test_quadratic_sieve_success_path() -> None:
     """Verify QuadraticSieveStage success return path."""
     stage = QuadraticSieveStage()
-    original = stage._QuadraticSieveStage__find_factor
-    stage._QuadraticSieveStage__find_factor = lambda n: 7
+    original = getattr(stage, "_QuadraticSieveStage__find_factor")
+    setattr(stage, "_QuadraticSieveStage__find_factor", lambda _n: 7)
     try:
         result = stage.attempt(91)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 7
     finally:
-        stage._QuadraticSieveStage__find_factor = original
+        setattr(stage, "_QuadraticSieveStage__find_factor", original)
 
 
 # ---------------------------------------------------------------------------
@@ -862,52 +878,56 @@ def test_siqs_factor_found() -> None:
 def test_siqs_factor_base_lt_min() -> None:
     """Verify __find_factor returns None when factor_base < MIN_RELATIONS."""
     stage = SIQSStage()
-    original_build = stage._SIQSStage__build_factor_base
-    stage._SIQSStage__build_factor_base = lambda n, bound: [-1]
+    original_build = getattr(stage, "_SIQSStage__build_factor_base")
+    setattr(stage, "_SIQSStage__build_factor_base", lambda _n, _bound: [-1])
     try:
-        result = stage._SIQSStage__find_factor(91)
+        result = getattr(stage, "_SIQSStage__find_factor")(91)
         assert result is None
     finally:
-        stage._SIQSStage__build_factor_base = original_build
+        setattr(stage, "_SIQSStage__build_factor_base", original_build)
 
 
 def test_siqs_relations_lt_base() -> None:
     """Verify __find_factor returns None when relations < len(factor_base)."""
     stage = SIQSStage()
-    original_relations = stage._SIQSStage__find_smooth_relations
-    stage._SIQSStage__find_smooth_relations = lambda n, fb, target: []
+    original_relations = getattr(stage, "_SIQSStage__find_smooth_relations")
+    setattr(stage, "_SIQSStage__find_smooth_relations", lambda _n, _fb, _target: [])
     try:
-        result = stage._SIQSStage__find_factor(91)
+        result = getattr(stage, "_SIQSStage__find_factor")(91)
         assert result is None
     finally:
-        stage._SIQSStage__find_smooth_relations = original_relations
+        setattr(stage, "_SIQSStage__find_smooth_relations", original_relations)
 
 
 def test_siqs_dependency_none() -> None:
     """Verify __find_factor returns None when dependency is None."""
     stage = SIQSStage()
     import factorise.stages.siqs as siqs_module
-    original_find_dep = siqs_module.find_dependency
-    siqs_module.find_dependency = lambda rels, num_primes: None
+    original_find_dep = getattr(siqs_module, "find_dependency")
+    setattr(siqs_module, "find_dependency", lambda _rels, _num_primes: None)
     # Ensure enough relations are returned to pass the len check
-    original_relations = stage._SIQSStage__find_smooth_relations
-    stage._SIQSStage__find_smooth_relations = lambda n, fb, target: [{
-        "a": 1,
-        "a2_mod_n": 1,
-        "exponents": [0] * len(fb)
-    } for _ in range(len(fb) + 1)]
+    original_relations = getattr(stage, "_SIQSStage__find_smooth_relations")
+    setattr(
+        stage,
+        "_SIQSStage__find_smooth_relations",
+        lambda _n, fb, _target: [{
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0] * len(fb)
+        } for _ in range(len(fb) + 1)],
+    )
     try:
-        result = stage._SIQSStage__find_factor(91)
+        result = getattr(stage, "_SIQSStage__find_factor")(91)
         assert result is None
     finally:
-        siqs_module.find_dependency = original_find_dep
-        stage._SIQSStage__find_smooth_relations = original_relations
+        setattr(siqs_module, "find_dependency", original_find_dep)
+        setattr(stage, "_SIQSStage__find_smooth_relations", original_relations)
 
 
 def test_siqs_build_factor_base_return() -> None:
     """Verify __build_factor_base returns base list."""
     stage = SIQSStage()
-    base = stage._SIQSStage__build_factor_base(91, 20)
+    base = getattr(stage, "_SIQSStage__build_factor_base")(91, 20)
     assert isinstance(base, list)
     assert base[0] == -1
 
@@ -916,7 +936,7 @@ def test_siqs_find_smooth_relations_return() -> None:
     """Verify __find_smooth_relations returns relations list."""
     stage = SIQSStage()
     # Use a large target so the early return isn't hit
-    relations = stage._SIQSStage__find_smooth_relations(91, [-1, 2, 3], 1000)
+    relations = getattr(stage, "_SIQSStage__find_smooth_relations")(91, [-1, 2, 3], 1000)
     assert isinstance(relations, list)
     assert len(relations) < 1000
 
@@ -924,14 +944,14 @@ def test_siqs_find_smooth_relations_return() -> None:
 def test_siqs_success_path() -> None:
     """Verify SIQSStage success return path."""
     stage = SIQSStage()
-    original = stage._SIQSStage__find_factor
-    stage._SIQSStage__find_factor = lambda n: 7
+    original = getattr(stage, "_SIQSStage__find_factor")
+    setattr(stage, "_SIQSStage__find_factor", lambda _n: 7)
     try:
         result = stage.attempt(91)
         assert result.status is StageStatus.SUCCESS
         assert result.factor == 7
     finally:
-        stage._SIQSStage__find_factor = original
+        setattr(stage, "_SIQSStage__find_factor", original)
 
 
 # ---------------------------------------------------------------------------
