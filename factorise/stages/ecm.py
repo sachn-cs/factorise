@@ -78,7 +78,10 @@ class ECMStage(EllipticCurveOperations, FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 2, elapsed,
+                self.name,
+                n,
+                2,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -89,12 +92,14 @@ class ECMStage(EllipticCurveOperations, FactorStage):
             )
 
         prime_start = time.monotonic()
-        prime_base = generate_primes_up_to(
-            min(self.__bound, PRIME_BASE_CUTOFF),
-        )
+        prime_base = generate_primes_up_to(min(self.__bound,
+                                               PRIME_BASE_CUTOFF),)
         LOG.debug(
             "stage=%s n=%d action=build_prime_base elapsed_ms=%.2f primes=%d",
-            self.name, n, elapsed_ms(prime_start), len(prime_base),
+            self.name,
+            n,
+            elapsed_ms(prime_start),
+            len(prime_base),
         )
 
         for curve_num in range(self.__curves):
@@ -104,7 +109,11 @@ class ECMStage(EllipticCurveOperations, FactorStage):
                 elapsed = elapsed_ms(start)
                 LOG.debug(
                     "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
-                    self.name, n, factor, elapsed, curve_num + 1,
+                    self.name,
+                    n,
+                    factor,
+                    elapsed,
+                    curve_num + 1,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -115,13 +124,18 @@ class ECMStage(EllipticCurveOperations, FactorStage):
                 )
             LOG.debug(
                 "stage=%s n=%d action=run_curve curve=%d elapsed_ms=%.2f",
-                self.name, n, curve_num + 1, elapsed_ms(curve_start),
+                self.name,
+                n,
+                curve_num + 1,
+                elapsed_ms(curve_start),
             )
 
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed,
+            self.name,
+            n,
+            elapsed,
             f"no factor found after {self.__curves} curves",
         )
         return StageResult(

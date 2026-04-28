@@ -70,10 +70,10 @@ def process_chunk(start: int, end: int) -> ChunkResult:
         if not _is_factorisation_valid(number, result.powers):
             errors += 1
             logging.error(
-                    "Validation failed! n=%s, factors=%s",
-                    number,
-                    result.factors,
-                )
+                "Validation failed! n=%s, factors=%s",
+                number,
+                result.factors,
+            )
 
         processed += 1
 
@@ -133,8 +133,7 @@ def main() -> None:
                     logging.error("Chunk failed with OS error: %s", err)
                     total_errors += 1
                 except Exception as err:
-                    logging.error(
-                        "Chunk failed with unexpected error: %s", err)
+                    logging.error("Chunk failed with unexpected error: %s", err)
                     total_errors += 1
 
     elapsed = time.perf_counter() - global_start

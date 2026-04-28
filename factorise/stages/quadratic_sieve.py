@@ -68,7 +68,10 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n < 3", elapsed,
+                self.name,
+                n,
+                "n < 3",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -82,7 +85,10 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 2, elapsed,
+                self.name,
+                n,
+                2,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -96,7 +102,8 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n,
+                self.name,
+                n,
                 f"n too large for QS ({n.bit_length()} bits > {QS_MAX_BIT_LENGTH})",
                 elapsed,
             )
@@ -105,8 +112,8 @@ class QuadraticSieveStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=elapsed,
-                reason=(
-                    f"n too large for QS ({n.bit_length()} bits > {QS_MAX_BIT_LENGTH})"
+                reason=
+                (f"n too large for QS ({n.bit_length()} bits > {QS_MAX_BIT_LENGTH})"
                 ),
             )
 
@@ -114,7 +121,10 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n is prime", elapsed,
+                self.name,
+                n,
+                "n is prime",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -129,7 +139,10 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, root_n, elapsed,
+                self.name,
+                n,
+                root_n,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -144,7 +157,10 @@ class QuadraticSieveStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f",
-                self.name, n, factor, elapsed,
+                self.name,
+                n,
+                factor,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -156,7 +172,10 @@ class QuadraticSieveStage(FactorStage):
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed, "QS did not find a factor",
+            self.name,
+            n,
+            elapsed,
+            "QS did not find a factor",
         )
         return StageResult(
             stage_name=self.name,
@@ -171,7 +190,10 @@ class QuadraticSieveStage(FactorStage):
         prime_base = self.__build_prime_base(n)
         LOG.debug(
             "stage=%s n=%d action=build_prime_base elapsed_ms=%.2f size=%d",
-            self.name, n, elapsed_ms(base_start), len(prime_base),
+            self.name,
+            n,
+            elapsed_ms(base_start),
+            len(prime_base),
         )
         if len(prime_base) < 2:
             return None
@@ -180,7 +202,10 @@ class QuadraticSieveStage(FactorStage):
         relations = self.__find_smooth_relations(n, prime_base)
         LOG.debug(
             "stage=%s n=%d action=find_relations elapsed_ms=%.2f count=%d",
-            self.name, n, elapsed_ms(rel_start), len(relations),
+            self.name,
+            n,
+            elapsed_ms(rel_start),
+            len(relations),
         )
         if len(relations) < len(prime_base):
             return None
@@ -189,7 +214,9 @@ class QuadraticSieveStage(FactorStage):
         dependency = find_dependency(relations, len(prime_base))
         LOG.debug(
             "stage=%s n=%d action=find_dependency elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(dep_start),
+            self.name,
+            n,
+            elapsed_ms(dep_start),
         )
         if dependency is None:
             return None
@@ -198,7 +225,9 @@ class QuadraticSieveStage(FactorStage):
         factor = extract_factor(n, relations, dependency, prime_base)
         LOG.debug(
             "stage=%s n=%d action=extract_factor elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(extract_start),
+            self.name,
+            n,
+            elapsed_ms(extract_start),
         )
         return factor
 
@@ -240,8 +269,7 @@ class QuadraticSieveStage(FactorStage):
                         "a": candidate,
                         "a2_mod_n": square_mod,
                         "exponents": exponents,
-                    },
-                )
+                    },)
                 if len(relations) >= target_count:
                     return relations
 

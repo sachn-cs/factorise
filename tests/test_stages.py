@@ -301,7 +301,7 @@ def test_pure_gnfs_perfect_square() -> None:
 
     stage = OptimizedGNFSStage()
     # Use a perfect square in the 60-256 bit range: (2**31 + 127)^2 ~ 62 bits
-    n = (2**31 + 127) ** 2
+    n = (2**31 + 127)**2
     result = stage.attempt(n)
     assert result.status is StageStatus.SUCCESS
     assert result.factor == 2**31 + 127
@@ -461,9 +461,21 @@ def test_find_dependency() -> None:
     from factorise.stages.qs_shared import find_dependency
 
     relations: list[QSRelation] = [
-        {"a": 1, "a2_mod_n": 1, "exponents": [0, 1, 1]},
-        {"a": 2, "a2_mod_n": 4, "exponents": [1, 0, 1]},
-        {"a": 3, "a2_mod_n": 9, "exponents": [1, 1, 0]},
+        {
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0, 1, 1]
+        },
+        {
+            "a": 2,
+            "a2_mod_n": 4,
+            "exponents": [1, 0, 1]
+        },
+        {
+            "a": 3,
+            "a2_mod_n": 9,
+            "exponents": [1, 1, 0]
+        },
     ]
     dep = find_dependency(relations, 3)
     assert dep is not None
@@ -474,7 +486,11 @@ def test_find_dependency_none() -> None:
     from factorise.stages.qs_shared import find_dependency
 
     relations: list[QSRelation] = [
-        {"a": 1, "a2_mod_n": 1, "exponents": [0, 1, 1]},
+        {
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0, 1, 1]
+        },
     ]
     dep = find_dependency(relations, 3)
     assert dep is None
@@ -485,8 +501,16 @@ def test_extract_factor() -> None:
     from factorise.stages.qs_shared import extract_factor
 
     relations: list[QSRelation] = [
-        {"a": 2, "a2_mod_n": 4, "exponents": [2]},
-        {"a": 3, "a2_mod_n": 9, "exponents": [0]},
+        {
+            "a": 2,
+            "a2_mod_n": 4,
+            "exponents": [2]
+        },
+        {
+            "a": 3,
+            "a2_mod_n": 9,
+            "exponents": [0]
+        },
     ]
     dependency = [1, 1]
     prime_base = [2]
@@ -498,7 +522,11 @@ def test_extract_factor_trivial() -> None:
     from factorise.stages.qs_shared import extract_factor
 
     relations: list[QSRelation] = [
-        {"a": 1, "a2_mod_n": 1, "exponents": [0]},
+        {
+            "a": 1,
+            "a2_mod_n": 1,
+            "exponents": [0]
+        },
     ]
     dependency = [0]
     prime_base = [2]

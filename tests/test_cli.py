@@ -43,6 +43,7 @@ def _run_main(argv: list[str]) -> tuple[int, str, str]:
 
 
 class TestCLIDisplay:
+
     def test_display_prime(self, capsys: pytest.CaptureFixture[str]) -> None:
         display_prime(97)
         out = capsys.readouterr().out
@@ -50,21 +51,35 @@ class TestCLIDisplay:
         assert "prime" in out.lower()
 
     def test_display_factors(self, capsys: pytest.CaptureFixture[str]) -> None:
-        result = _Result(original=12, factors=[2, 3], powers={2: 2, 3: 1}, is_prime=False)
+        result = _Result(original=12,
+                         factors=[2, 3],
+                         powers={
+                             2: 2,
+                             3: 1
+                         },
+                         is_prime=False)
         display_factors(result, verbose=False)
         out = capsys.readouterr().out
         assert "12" in out
         assert "2" in out
         assert "3" in out
 
-    def test_display_factors_verbose(self, capsys: pytest.CaptureFixture[str]) -> None:
-        result = _Result(original=12, factors=[2, 3], powers={2: 2, 3: 1}, is_prime=False)
+    def test_display_factors_verbose(
+            self, capsys: pytest.CaptureFixture[str]) -> None:
+        result = _Result(original=12,
+                         factors=[2, 3],
+                         powers={
+                             2: 2,
+                             3: 1
+                         },
+                         is_prime=False)
         display_factors(result, verbose=True)
         out = capsys.readouterr().out
         assert "2^2" in out or "2" in out
 
 
 class TestCLIMain:
+
     def test_cli_prime_shows_panel(self) -> None:
         exit_code, stdout, stderr = _run_main(["97"])
         assert exit_code == 0

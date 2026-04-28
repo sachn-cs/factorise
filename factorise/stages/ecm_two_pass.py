@@ -67,7 +67,10 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 2, elapsed,
+                self.name,
+                n,
+                2,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -82,7 +85,9 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
         first_pass_primes = generate_primes_up_to(self.__first_pass_bound)
         LOG.debug(
             "stage=%s n=%d action=stage1_primes elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(pass1_start),
+            self.name,
+            n,
+            elapsed_ms(pass1_start),
         )
 
         for curve_num in range(self.__first_pass_curves):
@@ -91,7 +96,11 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
                 elapsed = elapsed_ms(start)
                 LOG.debug(
                     "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
-                    self.name, n, factor, elapsed, curve_num + 1,
+                    self.name,
+                    n,
+                    factor,
+                    elapsed,
+                    curve_num + 1,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -103,7 +112,10 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
 
         LOG.debug(
             "stage=%s n=%d action=stage1_done elapsed_ms=%.2f curves=%d",
-            self.name, n, elapsed_ms(pass1_start), self.__first_pass_curves,
+            self.name,
+            n,
+            elapsed_ms(pass1_start),
+            self.__first_pass_curves,
         )
 
         # Stage 2
@@ -111,7 +123,9 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
         second_pass_primes = generate_primes_up_to(self.__second_pass_bound)
         LOG.debug(
             "stage=%s n=%d action=stage2_primes elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(pass2_start),
+            self.name,
+            n,
+            elapsed_ms(pass2_start),
         )
 
         for curve_num in range(self.__second_pass_curves):
@@ -125,7 +139,11 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
                 elapsed = elapsed_ms(start)
                 LOG.debug(
                     "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
-                    self.name, n, factor, elapsed, total_curves,
+                    self.name,
+                    n,
+                    factor,
+                    elapsed,
+                    total_curves,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -139,7 +157,9 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
         total_curves = self.__first_pass_curves + self.__second_pass_curves
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed,
+            self.name,
+            n,
+            elapsed,
             f"no factor found after {total_curves} curves",
         )
         return StageResult(

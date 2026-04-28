@@ -12,7 +12,6 @@ import random
 
 from factorise.utils import sieve_primes
 
-
 __all__ = [
     "EllipticCurveOperations",
     "compute_modular_inverse",

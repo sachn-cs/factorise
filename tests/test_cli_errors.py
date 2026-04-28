@@ -83,8 +83,8 @@ def test_cli_error_handling_runtime_error() -> None:
     """Verify that FactorisationError is caught as a Runtime Error."""
     from factorise.core import FactorisationError
     with patch(
-        "factorise.cli.factorise",
-        side_effect=FactorisationError("simulated failure"),
+            "factorise.cli.factorise",
+            side_effect=FactorisationError("simulated failure"),
     ):
         exit_code, stdout, stderr = _run_main(["123"])
         assert exit_code == 1
@@ -109,8 +109,8 @@ def test_cli_error_handling_value_error() -> None:
 def test_cli_main_invalid_input_value() -> None:
     """Hit the ValueError catch block in cli.main (e.g. invalid config from env)."""
     with patch(
-        "factorise.cli.FactoriserConfig.from_env",
-        side_effect=ValueError("bad config"),
+            "factorise.cli.FactoriserConfig.from_env",
+            side_effect=ValueError("bad config"),
     ):
         exit_code, stdout, stderr = _run_main(["8051"])
         assert exit_code == 1

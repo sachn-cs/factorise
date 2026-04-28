@@ -123,9 +123,7 @@ def validate_int_range(
 ) -> None:
     """Raise ValueError if *value* is outside [*min_val*, *max_val*]."""
     if not min_val <= value <= max_val:
-        raise ValueError(
-            f"{name} must be {min_val}-{max_val}, got {value}"
-        )
+        raise ValueError(f"{name} must be {min_val}-{max_val}, got {value}")
 
 
 def env_int(var: str, default: str) -> int:
@@ -146,9 +144,7 @@ def env_int(var: str, default: str) -> int:
     try:
         return int(raw)
     except ValueError as exc:
-        raise ValueError(
-            f"Invalid {var}={raw!r}: must be an integer"
-        ) from exc
+        raise ValueError(f"Invalid {var}={raw!r}: must be an integer") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -180,18 +176,16 @@ class AlgorithmConfig:
             ValueError: If any field is outside its allowed range.
 
         """
-        validate_int_range(
-            "batch_size", self.batch_size, BATCH_SIZE_MIN, BATCH_SIZE_MAX
-        )
+        validate_int_range("batch_size", self.batch_size, BATCH_SIZE_MIN,
+                           BATCH_SIZE_MAX)
         validate_int_range(
             "max_iterations",
             self.max_iterations,
             MAX_ITERATIONS_MIN,
             MAX_ITERATIONS_MAX,
         )
-        validate_int_range(
-            "max_retries", self.max_retries, MAX_RETRIES_MIN, MAX_RETRIES_MAX
-        )
+        validate_int_range("max_retries", self.max_retries, MAX_RETRIES_MIN,
+                           MAX_RETRIES_MAX)
 
 
 # ---------------------------------------------------------------------------
@@ -290,35 +284,24 @@ class PipelineConfig(AlgorithmConfig):
         """
         seed = os.getenv("FACTORISE_SEED")
         return cls(
-            bound_small=env_int(
-                "FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL)
-            ),
-            bound_medium=env_int(
-                "FACTORISE_BOUND_MEDIUM", str(DEFAULT_BOUND_MEDIUM)
-            ),
-            bound_large=env_int(
-                "FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE)
-            ),
-            bound_xlarge=env_int(
-                "FACTORISE_BOUND_XLARGE", str(DEFAULT_BOUND_XLARGE)
-            ),
-            trial_division_bound=env_int(
-                "FACTORISE_TRIAL_DIVISION_BOUND", "10000"
-            ),
-            pm1_bound=env_int(
-                "FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND)
-            ),
-            ecm_curves=env_int(
-                "FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES)
-            ),
+            bound_small=env_int("FACTORISE_BOUND_SMALL",
+                                str(DEFAULT_BOUND_SMALL)),
+            bound_medium=env_int("FACTORISE_BOUND_MEDIUM",
+                                 str(DEFAULT_BOUND_MEDIUM)),
+            bound_large=env_int("FACTORISE_BOUND_LARGE",
+                                str(DEFAULT_BOUND_LARGE)),
+            bound_xlarge=env_int("FACTORISE_BOUND_XLARGE",
+                                 str(DEFAULT_BOUND_XLARGE)),
+            trial_division_bound=env_int("FACTORISE_TRIAL_DIVISION_BOUND",
+                                         "10000"),
+            pm1_bound=env_int("FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND)),
+            ecm_curves=env_int("FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES)),
             gnfs_timeout=env_int(
                 "FACTORISE_GNFS_TIMEOUT",
                 str(DEFAULT_GNFS_TIMEOUT_SECONDS),
             ),
             gnfs_binary=os.getenv("FACTORISE_GNFS_BINARY", "msieve"),
-            max_iterations=env_int(
-                "FACTORISE_MAX_ITERATIONS", "10000000"
-            ),
+            max_iterations=env_int("FACTORISE_MAX_ITERATIONS", "10000000"),
             max_retries=env_int("FACTORISE_MAX_RETRIES", "20"),
             batch_size=env_int("FACTORISE_BATCH_SIZE", "128"),
             seed=int(seed) if seed is not None else None,
@@ -420,8 +403,7 @@ class HybridConfig(AlgorithmConfig):
             if bound < PM1_SMOOTHNESS_BOUND_MIN:
                 raise ValueError(
                     f"each pm1_smoothness_bound must be >= {PM1_SMOOTHNESS_BOUND_MIN}, "
-                    f"got {bound}"
-                )
+                    f"got {bound}")
         for base in self.pm1_trial_bases:
             if base < PM1_TRIAL_BASE_MIN:
                 raise ValueError(
@@ -489,8 +471,7 @@ class HybridConfig(AlgorithmConfig):
         if self.ecm_second_pass_bound <= self.ecm_first_pass_bound:
             raise ValueError(
                 f"ecm_second_pass_bound ({self.ecm_second_pass_bound}) must be > "
-                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})"
-            )
+                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})")
 
     def _validate_siqs(self) -> None:
         """Validate the SIQS maximum bit length.

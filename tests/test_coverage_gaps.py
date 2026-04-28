@@ -98,7 +98,7 @@ def test_gnfs_optimized_perfect_square() -> None:
     """Verify GNFS finds perfect square factors."""
     stage = OptimizedGNFSStage()
     # (2**31 + 127)^2 ~ 62 bits
-    n = (2**31 + 127) ** 2
+    n = (2**31 + 127)**2
     result = stage.attempt(n)
     assert result.status is StageStatus.SUCCESS
     assert result.factor == 2**31 + 127
@@ -201,6 +201,7 @@ def test_pollard_rho_stage_failure() -> None:
 # ---------------------------------------------------------------------------
 # gnfs_optimized.py — utility functions and sieving paths
 # ---------------------------------------------------------------------------
+
 
 def test_legendre_symbol_p_equals_2() -> None:
     """Verify Legendre symbol handles p=2."""

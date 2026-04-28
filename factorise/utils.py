@@ -30,5 +30,5 @@ def sieve_primes(bound: int) -> list[int]:
             start = i * i
             step = i
             count = (bound - start) // step + 1
-            is_prime_arr[start : bound + 1 : step] = b"\x00" * count
+            is_prime_arr[start:bound + 1:step] = b"\x00" * count
     return [i for i in range(2, bound + 1) if is_prime_arr[i]]

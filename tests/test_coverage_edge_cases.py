@@ -58,7 +58,8 @@ def test_validate_int_error_message() -> None:
 def test_pollard_brent_attempt_invalid_config() -> None:
     """Trigger the defensive type check for config in pollard_brent_attempt."""
     with pytest.raises(TypeError) as excinfo:
-        pollard_brent_attempt(15, 2, 1, cast(FactoriserConfig, "not_a_config"), 100)
+        pollard_brent_attempt(15, 2, 1, cast(FactoriserConfig, "not_a_config"),
+                              100)
     assert "config must be FactoriserConfig" in str(excinfo.value)
 
 
@@ -87,8 +88,11 @@ def test_pollard_brent_backtrack_failure() -> None:
 
 def test_pollard_brent_success_without_factor_bug() -> None:
     """Verify defensive check when algorithm claims success but provides no factor."""
-    fake_success = AttemptResult(AttemptStatus.SUCCESS, iterations_used=1, factor=None)
-    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fake_success):
+    fake_success = AttemptResult(AttemptStatus.SUCCESS,
+                                 iterations_used=1,
+                                 factor=None)
+    with patch("factorise.core.execute_brent_pollard_cycle",
+               return_value=fake_success):
         with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
@@ -98,11 +102,13 @@ def test_pollard_brent_success_without_factor_bug() -> None:
 def test_pollard_brent_global_iteration_cap_hit() -> None:
     """Verify behavior when the global iteration cap is hit."""
     cap_hit = AttemptResult(AttemptStatus.ITERATION_CAP_HIT, iterations_used=10)
-    with patch("factorise.core.execute_brent_pollard_cycle", return_value=cap_hit):
+    with patch("factorise.core.execute_brent_pollard_cycle",
+               return_value=cap_hit):
         with patch("factorise.core.is_prime", return_value=False):
             with pytest.raises(FactorisationError) as excinfo:
                 pollard_brent(LARGE_COMPOSITE_NO_SMALL_FACTORS, DEFAULT_CONFIG)
-            assert f"failed for n={LARGE_COMPOSITE_NO_SMALL_FACTORS}" in str(excinfo.value)
+            assert f"failed for n={LARGE_COMPOSITE_NO_SMALL_FACTORS}" in str(
+                excinfo.value)
 
 
 # ---------------------------------------------------------------------------
@@ -113,8 +119,8 @@ def test_pollard_brent_global_iteration_cap_hit() -> None:
 def test_cli_main_invalid_input_value() -> None:
     """Hit the ValueError catch block in cli.main (e.g. invalid config from env)."""
     with patch(
-        "factorise.cli.FactoriserConfig.from_env",
-        side_effect=ValueError("bad config"),
+            "factorise.cli.FactoriserConfig.from_env",
+            side_effect=ValueError("bad config"),
     ):
         exit_code, stdout, stderr = _run_main(["8051"])
         assert exit_code == 1
@@ -132,7 +138,8 @@ def test_cli_main_type_error_catch() -> None:
 def test_pollard_brent_all_retries_fail() -> None:
     """Exhaust all retries in pollard_brent to hit loop termination branch."""
     fail_res = AttemptResult(AttemptStatus.ALGORITHM_FAILURE, iterations_used=1)
-    with patch("factorise.core.execute_brent_pollard_cycle", return_value=fail_res):
+    with patch("factorise.core.execute_brent_pollard_cycle",
+               return_value=fail_res):
         with patch("factorise.core.is_prime", return_value=False):
             cfg = FactoriserConfig(max_retries=1)
             with pytest.raises(FactorisationError):

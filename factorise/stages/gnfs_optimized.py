@@ -19,12 +19,12 @@ import math
 import time
 from typing import TypedDict
 
-from factorise.utils import sieve_primes
 from factorise.core import is_prime as is_prime_check
 from factorise.pipeline import FactorStage
 from factorise.pipeline import StageResult
 from factorise.pipeline import StageStatus
 from factorise.pipeline import elapsed_ms
+from factorise.utils import sieve_primes
 
 __all__ = [
     "GNFSRelation",
@@ -183,9 +183,9 @@ def select_polynomial(n: int) -> tuple[Polynomial, int]:
         A tuple ``(polynomial, m)``.
 
     """
-    m = int(round(n ** (1.0 / 3.0)))
+    m = int(round(n**(1.0 / 3.0)))
     if m < 2:
-        m = max(2, int(n ** (1.0 / 3.0)) + 1)
+        m = max(2, int(n**(1.0 / 3.0)) + 1)
     return Polynomial(a=1, b=0, c=-m), m
 
 
@@ -318,7 +318,10 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n < 3", elapsed,
+                self.name,
+                n,
+                "n < 3",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -332,7 +335,8 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n,
+                self.name,
+                n,
                 f"n ({bits} bits) below minimum {GNFS_MIN_BIT_LENGTH} bits",
                 elapsed,
             )
@@ -350,7 +354,8 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n,
+                self.name,
+                n,
                 f"n ({bits} bits) above maximum {GNFS_MAX_BIT_LENGTH} bits",
                 elapsed,
             )
@@ -368,7 +373,10 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n is prime", elapsed,
+                self.name,
+                n,
+                "n is prime",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -383,7 +391,10 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, root, elapsed,
+                self.name,
+                n,
+                root,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -398,7 +409,10 @@ class GNFSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f",
-                self.name, n, factor, elapsed,
+                self.name,
+                n,
+                factor,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -410,7 +424,10 @@ class GNFSStage(FactorStage):
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed, "gnfs did not find a factor",
+            self.name,
+            n,
+            elapsed,
+            "gnfs did not find a factor",
         )
         return StageResult(
             stage_name=self.name,
@@ -467,7 +484,9 @@ class GNFSStage(FactorStage):
                 m += attempt * 7 + 11
             LOG.debug(
                 "stage=%s n=%d action=select_polynomial elapsed_ms=%.2f",
-                self.name, n, elapsed_ms(poly_start),
+                self.name,
+                n,
+                elapsed_ms(poly_start),
             )
 
             fb_start = time.monotonic()
@@ -475,8 +494,11 @@ class GNFSStage(FactorStage):
             LOG.debug(
                 "stage=%s n=%d action=build_factor_bases elapsed_ms=%.2f "
                 "rational=%d algebraic=%d",
-                self.name, n, elapsed_ms(fb_start),
-                len(rational_base), len(algebraic_base),
+                self.name,
+                n,
+                elapsed_ms(fb_start),
+                len(rational_base),
+                len(algebraic_base),
             )
 
             if len(rational_base) < 5 or len(algebraic_base) < 5:
@@ -487,16 +509,22 @@ class GNFSStage(FactorStage):
 
             sieve_start = time.monotonic()
             relations = self.__lattice_sieve(
-                n, m,
-                rational_base, algebraic_base,
-                max_a, max_b,
+                n,
+                m,
+                rational_base,
+                algebraic_base,
+                max_a,
+                max_b,
                 target_count,
             )
             LOG.debug(
                 "stage=%s n=%d action=lattice_sieve elapsed_ms=%.2f "
                 "relations=%d target=%d",
-                self.name, n, elapsed_ms(sieve_start),
-                len(relations), target_count,
+                self.name,
+                n,
+                elapsed_ms(sieve_start),
+                len(relations),
+                target_count,
             )
 
             if len(relations) < num_cols:
@@ -506,20 +534,27 @@ class GNFSStage(FactorStage):
             dependency = self.__find_dependency(relations, num_cols)
             LOG.debug(
                 "stage=%s n=%d action=find_dependency elapsed_ms=%.2f",
-                self.name, n, elapsed_ms(dep_start),
+                self.name,
+                n,
+                elapsed_ms(dep_start),
             )
             if dependency is None:
                 return None
 
             extract_start = time.monotonic()
             factor = self.__extract_factor(
-                n, m,
-                relations, dependency,
-                rational_base, algebraic_base,
+                n,
+                m,
+                relations,
+                dependency,
+                rational_base,
+                algebraic_base,
             )
             LOG.debug(
                 "stage=%s n=%d action=extract_factor elapsed_ms=%.2f",
-                self.name, n, elapsed_ms(extract_start),
+                self.name,
+                n,
+                elapsed_ms(extract_start),
             )
 
             if factor is not None and 1 < factor < n:
@@ -602,9 +637,7 @@ class GNFSStage(FactorStage):
                         if neg_r < lo_a % p:
                             first_a = neg_r + ((lo_a - neg_r + p - 1) // p) * p
                         else:
-                            first_a = (
-                                neg_r if neg_r >= lo_a else neg_r + p
-                            )
+                            first_a = (neg_r if neg_r >= lo_a else neg_r + p)
                         a = first_a
                         while a >= lo_a and a > 0:
                             if math.gcd(a, b) == 1:

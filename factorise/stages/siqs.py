@@ -44,10 +44,8 @@ class SIQSStage(FactorStage):
             max_bit_length: Numbers above this bit length are skipped.
 
         """
-        self.__max_bit_length = (
-            max_bit_length if max_bit_length is not None
-            else SIQS_MAX_BIT_LENGTH
-        )
+        self.__max_bit_length = (max_bit_length if max_bit_length is not None
+                                 else SIQS_MAX_BIT_LENGTH)
 
     def attempt(self, n: int) -> StageResult:
         """Attempt to find a factor of *n* using SIQS.
@@ -69,7 +67,10 @@ class SIQSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n < 3", elapsed,
+                self.name,
+                n,
+                "n < 3",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -83,7 +84,8 @@ class SIQSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n,
+                self.name,
+                n,
                 f"n ({n.bit_length()} bits) exceeds SIQS maximum "
                 f"({self.__max_bit_length} bits)",
                 elapsed,
@@ -93,17 +95,18 @@ class SIQSStage(FactorStage):
                 status=StageStatus.SKIPPED,
                 factor=None,
                 elapsed_ms=elapsed,
-                reason=(
-                    f"n ({n.bit_length()} bits) exceeds SIQS maximum "
-                    f"({self.__max_bit_length} bits)"
-                ),
+                reason=(f"n ({n.bit_length()} bits) exceeds SIQS maximum "
+                        f"({self.__max_bit_length} bits)"),
             )
 
         if is_prime(n):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n is prime", elapsed,
+                self.name,
+                n,
+                "n is prime",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -117,7 +120,10 @@ class SIQSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 2, elapsed,
+                self.name,
+                n,
+                2,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -132,7 +138,10 @@ class SIQSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, root_n, elapsed,
+                self.name,
+                n,
+                root_n,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -147,7 +156,10 @@ class SIQSStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f",
-                self.name, n, factor, elapsed,
+                self.name,
+                n,
+                factor,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -159,7 +171,10 @@ class SIQSStage(FactorStage):
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed, "SIQS found no factor",
+            self.name,
+            n,
+            elapsed,
+            "SIQS found no factor",
         )
         return StageResult(
             stage_name=self.name,
@@ -174,14 +189,20 @@ class SIQSStage(FactorStage):
         bound = self.__compute_smoothness_bound(n)
         LOG.debug(
             "stage=%s n=%d action=compute_bound elapsed_ms=%.2f bound=%d",
-            self.name, n, elapsed_ms(bound_start), bound,
+            self.name,
+            n,
+            elapsed_ms(bound_start),
+            bound,
         )
 
         base_start = time.monotonic()
         factor_base = self.__build_factor_base(n, bound)
         LOG.debug(
             "stage=%s n=%d action=build_factor_base elapsed_ms=%.2f size=%d",
-            self.name, n, elapsed_ms(base_start), len(factor_base),
+            self.name,
+            n,
+            elapsed_ms(base_start),
+            len(factor_base),
         )
         if len(factor_base) < MIN_RELATIONS:
             return None
@@ -191,7 +212,10 @@ class SIQSStage(FactorStage):
         relations = self.__find_smooth_relations(n, factor_base, target)
         LOG.debug(
             "stage=%s n=%d action=find_relations elapsed_ms=%.2f count=%d",
-            self.name, n, elapsed_ms(rel_start), len(relations),
+            self.name,
+            n,
+            elapsed_ms(rel_start),
+            len(relations),
         )
         if len(relations) < len(factor_base):
             return None
@@ -200,7 +224,9 @@ class SIQSStage(FactorStage):
         dependency = find_dependency(relations, len(factor_base))
         LOG.debug(
             "stage=%s n=%d action=find_dependency elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(dep_start),
+            self.name,
+            n,
+            elapsed_ms(dep_start),
         )
         if dependency is None:
             return None
@@ -209,7 +235,9 @@ class SIQSStage(FactorStage):
         factor = extract_factor(n, relations, dependency, factor_base)
         LOG.debug(
             "stage=%s n=%d action=extract_factor elapsed_ms=%.2f",
-            self.name, n, elapsed_ms(extract_start),
+            self.name,
+            n,
+            elapsed_ms(extract_start),
         )
         return factor
 
@@ -258,8 +286,7 @@ class SIQSStage(FactorStage):
                         "a": candidate,
                         "a2_mod_n": square_mod,
                         "exponents": exponents,
-                    },
-                )
+                    },)
                 if len(relations) >= target_count:
                     return relations
 

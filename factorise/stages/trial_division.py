@@ -40,9 +40,8 @@ class OptimizedTrialDivisionStage(FactorStage):
 
         """
         self.__bound = bound if bound is not None else DEFAULT_BOUND
-        self.__prime_table = (
-            prime_table if prime_table is not None else EXTENDED_SMALL_PRIMES
-        )
+        self.__prime_table = (prime_table if prime_table is not None else
+                              EXTENDED_SMALL_PRIMES)
 
     def attempt(self, n: int) -> StageResult:
         """Attempt to find a small factor of *n* via trial division.
@@ -64,7 +63,10 @@ class OptimizedTrialDivisionStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n < 2", elapsed,
+                self.name,
+                n,
+                "n < 2",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -78,7 +80,10 @@ class OptimizedTrialDivisionStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 2, elapsed,
+                self.name,
+                n,
+                2,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -91,7 +96,10 @@ class OptimizedTrialDivisionStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 3, elapsed,
+                self.name,
+                n,
+                3,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -104,7 +112,10 @@ class OptimizedTrialDivisionStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, 5, elapsed,
+                self.name,
+                n,
+                5,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -123,7 +134,11 @@ class OptimizedTrialDivisionStage(FactorStage):
                 elapsed = elapsed_ms(start)
                 LOG.debug(
                     "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
-                    self.name, n, prime, elapsed, iterations,
+                    self.name,
+                    n,
+                    prime,
+                    elapsed,
+                    iterations,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -136,7 +151,10 @@ class OptimizedTrialDivisionStage(FactorStage):
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed, "no small factor found in trial division",
+            self.name,
+            n,
+            elapsed,
+            "no small factor found in trial division",
         )
         return StageResult(
             stage_name=self.name,

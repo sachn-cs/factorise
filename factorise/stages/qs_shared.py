@@ -10,7 +10,6 @@ from __future__ import annotations
 import math
 from typing import TypedDict
 
-
 __all__ = [
     "QSRelation",
     "extract_factor",
@@ -164,8 +163,7 @@ def find_dependency(
         for r in range(num_rows):
             if r != row_idx and ((rows[r][0] >> col) & 1):
                 rows[r] = (rows[r][0] ^ rows[row_idx][0],
-                           rows[r][1] ^ rows[row_idx][1],
-                           rows[r][2])
+                           rows[r][1] ^ rows[row_idx][1], rows[r][2])
 
         row_idx += 1
         if row_idx >= num_rows:

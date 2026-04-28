@@ -170,7 +170,10 @@ class PollardPMinusOneStage(FactorStage):
             if 1 < g < n:
                 _LOG.debug(
                     "stage=%s n=%d factor=%d base=%d",
-                    self.name, n, g, base,
+                    self.name,
+                    n,
+                    g,
+                    base,
                 )
                 return StageResult(
                     stage_name=self.name,
@@ -232,8 +235,7 @@ class FactorisationPipeline:
                 )
             elif name == "pollard_pminus1":
                 stages[name] = ImprovedPollardPMinusOneStage(
-                    bounds=(self._config.pm1_bound,),
-                )
+                    bounds=(self._config.pm1_bound,),)
             elif name == "pollard_rho":
                 stages[name] = PollardRhoStage(
                     max_retries=self._config.max_retries,
@@ -308,7 +310,10 @@ class FactorisationPipeline:
             result = stage.attempt(n)
             _LOG.debug(
                 "stage=%s n=%d status=%s factor=%s elapsed_ms=%.2f",
-                stage_name, n, result.status.value, result.factor,
+                stage_name,
+                n,
+                result.status.value,
+                result.factor,
                 result.elapsed_ms,
             )
 
@@ -325,8 +330,7 @@ class FactorisationPipeline:
             if result.status is not StageStatus.SKIPPED:
                 failures.append(
                     f"{stage_name}({result.status.value}): "
-                    f"{result.reason or 'unknown'}",
-                )
+                    f"{result.reason or 'unknown'}",)
 
         return StageResult(
             stage_name="pipeline",
@@ -388,10 +392,8 @@ def yield_prime_factors_via_pipeline(
             except FactorisationError as exc:
                 raise FactorisationError(
                     f"All stages failed for n={current}; "
-                    "input may be prime or require GNFS",
-                ) from exc
+                    "input may be prime or require GNFS",) from exc
         else:
             raise FactorisationError(
                 f"Pipeline returned unexpected status {result.status} "
-                f"for composite n={current}",
-            )
+                f"for composite n={current}",)

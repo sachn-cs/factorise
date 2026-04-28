@@ -81,7 +81,10 @@ class PollardRhoStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
-                self.name, n, factor, elapsed,
+                self.name,
+                n,
+                factor,
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -94,7 +97,10 @@ class PollardRhoStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-                self.name, n, elapsed, str(exc),
+                self.name,
+                n,
+                elapsed,
+                str(exc),
             )
             return StageResult(
                 stage_name=self.name,

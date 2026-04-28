@@ -62,7 +62,10 @@ class ImprovedPollardPMinusOneStage(FactorStage):
             elapsed = elapsed_ms(start)
             LOG.debug(
                 "stage=%s n=%d status=SKIPPED reason=%s elapsed_ms=%.2f",
-                self.name, n, "n < 3", elapsed,
+                self.name,
+                n,
+                "n < 3",
+                elapsed,
             )
             return StageResult(
                 stage_name=self.name,
@@ -84,7 +87,13 @@ class ImprovedPollardPMinusOneStage(FactorStage):
                     LOG.debug(
                         "stage=%s n=%d factor=%d bound=%d base=%d "
                         "elapsed_ms=%.2f iterations=%d",
-                        self.name, n, g, bound, base, elapsed, iterations,
+                        self.name,
+                        n,
+                        g,
+                        bound,
+                        base,
+                        elapsed,
+                        iterations,
                     )
                     return StageResult(
                         stage_name=self.name,
@@ -98,13 +107,19 @@ class ImprovedPollardPMinusOneStage(FactorStage):
                 LOG.debug(
                     "stage=%s n=%d action=iteration bound=%d base=%d "
                     "elapsed_ms=%.2f",
-                    self.name, n, bound, base, elapsed_ms(iteration_start),
+                    self.name,
+                    n,
+                    bound,
+                    base,
+                    elapsed_ms(iteration_start),
                 )
 
         elapsed = elapsed_ms(start)
         LOG.debug(
             "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
-            self.name, n, elapsed,
+            self.name,
+            n,
+            elapsed,
             f"no smooth factor found with bounds up to {self.__bounds[-1]}",
         )
         return StageResult(
@@ -112,5 +127,6 @@ class ImprovedPollardPMinusOneStage(FactorStage):
             status=StageStatus.FAILURE,
             factor=None,
             elapsed_ms=elapsed,
-            reason=f"no smooth factor found with bounds up to {self.__bounds[-1]}",
+            reason=
+            f"no smooth factor found with bounds up to {self.__bounds[-1]}",
         )
