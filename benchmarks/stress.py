@@ -8,6 +8,7 @@ Run with:
     python -m benchmarks.stress
 """
 
+import logging
 import math
 import os
 import time
@@ -16,7 +17,6 @@ from concurrent.futures.process import ProcessPoolExecutor
 from dataclasses import dataclass
 from typing import Final
 
-from loguru import logger
 from rich.console import Console
 from rich.progress import BarColumn
 from rich.progress import MofNCompleteColumn
@@ -69,11 +69,11 @@ def process_chunk(start: int, end: int) -> ChunkResult:
         result = factorise(number, CONFIG)
         if not _is_factorisation_valid(number, result.powers):
             errors += 1
-            logger.error(
-                "Validation failed! n={n}, factors={factors}",
-                n=number,
-                factors=result.factors,
-            )
+            logging.error(
+                    "Validation failed! n=%s, factors=%s",
+                    number,
+                    result.factors,
+                )
 
         processed += 1
 
@@ -130,11 +130,11 @@ def main() -> None:
                     total_errors += result.errors
                     progress.advance(task, advance=result.processed)
                 except OSError as err:
-                    logger.error("Chunk failed with OS error: {e}", e=err)
+                    logging.error("Chunk failed with OS error: %s", err)
                     total_errors += 1
                 except Exception as err:
-                    logger.error("Chunk failed with unexpected error: {e}",
-                                 e=err)
+                    logging.error(
+                        "Chunk failed with unexpected error: %s", err)
                     total_errors += 1
 
     elapsed = time.perf_counter() - global_start

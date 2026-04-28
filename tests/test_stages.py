@@ -168,9 +168,9 @@ def test_qs_perfect_square() -> None:
     from factorise.stages.quadratic_sieve import QuadraticSieveStage
 
     stage = QuadraticSieveStage()
-    result = stage.attempt(100)
+    result = stage.attempt(121)
     assert result.status is StageStatus.SUCCESS
-    assert result.factor == 10
+    assert result.factor == 11
 
 
 def test_qs_small_input() -> None:
@@ -414,7 +414,7 @@ def test_elliptic_curve_operations() -> None:
 
     ops = EllipticCurveOperations()
     primes = generate_primes_up_to(100)
-    _result = ops.run_curve(91, 1, primes, 100)
+    _result = ops.run_curve(91, 1, primes)
     # May find a factor or return None
 
 

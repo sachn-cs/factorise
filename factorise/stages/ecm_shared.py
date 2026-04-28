@@ -1,8 +1,8 @@
 """Shared elliptic curve arithmetic for ECM-based stages.
 
 Provides Montgomery-curve point operations and prime generation used by
-ECMStage and TwoPassECMStage. All operations are performed modulo n and
-return partial factor discoveries via gcd checks rather than raising.
+:class:`~factorise.stages.ecm.ECMStage` and
+:class:`~factorise.stages.ecm_two_pass.TwoPassECMStage`.
 """
 
 from __future__ import annotations
@@ -10,21 +10,28 @@ from __future__ import annotations
 import math
 import random
 
-from factorise._utils import sieve_primes
+from factorise.utils import sieve_primes
+
+
+__all__ = [
+    "EllipticCurveOperations",
+    "compute_modular_inverse",
+    "generate_primes_up_to",
+]
 
 
 def compute_modular_inverse(a: int, n: int) -> int:
-    """Return the modular inverse of a modulo n.
+    """Return the modular inverse of *a* modulo *n*.
 
-    Uses the extended Euclidean algorithm. If a and n are not coprime,
-    returns 0 to signal that a factor of n may have been found.
+    Uses the extended Euclidean algorithm.  If *a* and *n* are not coprime,
+    returns ``0`` to signal that a factor of *n* may have been found.
 
     Args:
         a: The integer to invert.
         n: The modulus (a positive integer).
 
     Returns:
-        The modular inverse of a modulo n, or 0 if gcd(a, n) > 1.
+        The modular inverse of *a* modulo *n*, or ``0`` if ``gcd(a, n) > 1``.
 
     """
     if a == 0:
@@ -41,14 +48,14 @@ def compute_modular_inverse(a: int, n: int) -> int:
 
 
 def generate_primes_up_to(bound: int) -> list[int]:
-    """Return all primes up to bound using the Sieve of Eratosthenes.
+    """Return all primes up to *bound* using the Sieve of Eratosthenes.
 
     Args:
         bound: The inclusive upper bound for prime generation.
 
     Returns:
-        A sorted list of primes p where 2 <= p <= bound.
-        Returns an empty list if bound < 2.
+        A sorted list of primes ``p`` where ``2 <= p <= bound``.
+        Returns an empty list if ``bound < 2``.
 
     """
     return sieve_primes(bound)
@@ -58,7 +65,7 @@ class EllipticCurveOperations:
     """Shared elliptic curve point operations for ECM stages.
 
     Implements Montgomery-curve addition and doubling with gcd-aware
-    arithmetic. A gcd > 1 during slope computation signals a factor
+    arithmetic.  A ``gcd > 1`` during slope computation signals a factor
     discovery and is propagated back to the caller.
     """
 
@@ -69,17 +76,17 @@ class EllipticCurveOperations:
         a: int,
         n: int,
     ) -> tuple[int, int, int]:
-        """Double the point (x, y) on the curve y^2 = x^3 + ax + b (mod n).
+        """Double the point ``(x, y)`` on the curve ``y^2 = x^3 + ax + b (mod n)``.
 
         Args:
             x: The x-coordinate of the point.
             y: The y-coordinate of the point.
-            a: The curve coefficient a.
+            a: The curve coefficient *a*.
             n: The modulus (the composite being factored).
 
         Returns:
-            A tuple (x3, y3, gcd_value) where gcd_value > 1 indicates that
-            a non-trivial factor of n was found during the computation.
+            A tuple ``(x3, y3, gcd_value)`` where ``gcd_value > 1`` indicates
+            that a non-trivial factor of *n* was found during the computation.
 
         """
         if x == 0:
@@ -106,19 +113,19 @@ class EllipticCurveOperations:
         a: int,
         n: int,
     ) -> tuple[int, int, int]:
-        """Add two points (x1, y1) and (x2, y2) on the curve (mod n).
+        """Add two points ``(x1, y1)`` and ``(x2, y2)`` on the curve ``(mod n)``.
 
         Args:
             x1: The x-coordinate of the first point.
             y1: The y-coordinate of the first point.
             x2: The x-coordinate of the second point.
             y2: The y-coordinate of the second point.
-            a: The curve coefficient a.
+            a: The curve coefficient *a*.
             n: The modulus (the composite being factored).
 
         Returns:
-            A tuple (x3, y3, gcd_value) where gcd_value > 1 indicates that
-            a non-trivial factor of n was found during the computation.
+            A tuple ``(x3, y3, gcd_value)`` where ``gcd_value > 1`` indicates
+            that a non-trivial factor of *n* was found during the computation.
 
         """
         if x1 == 0 and y1 == 0:
@@ -148,17 +155,17 @@ class EllipticCurveOperations:
         a: int,
         n: int,
     ) -> int | None:
-        """Scalar multiply a point by k using the Montgomery ladder.
+        """Scalar multiply a point by *k* using the Montgomery ladder.
 
         Args:
-            point: A two-element list [x, y] representing the point.
+            point: A two-element list ``[x, y]`` representing the point.
             k: The scalar multiplier.
-            a: The curve coefficient a.
+            a: The curve coefficient *a*.
             n: The modulus (the composite being factored).
 
         Returns:
-            A non-trivial factor of n if one is discovered during the
-            ladder steps, otherwise None.
+            A non-trivial factor of *n* if one is discovered during the
+            ladder steps, otherwise ``None``.
 
         """
         if k == 0:
@@ -190,7 +197,6 @@ class EllipticCurveOperations:
         n: int,
         curve_seed: int,
         primes: list[int],
-        _bound: int,
     ) -> int | None:
         """Run one ECM curve and return a factor if found.
 
@@ -202,10 +208,9 @@ class EllipticCurveOperations:
             n: The composite integer to factor.
             curve_seed: Seed used to derive the random curve parameters.
             primes: List of primes whose product forms the stage-1 multiplier.
-            _bound: The smoothness bound (unused, kept for API compatibility).
 
         Returns:
-            A non-trivial factor of n if found, otherwise None.
+            A non-trivial factor of *n* if found, otherwise ``None``.
 
         """
         rng = random.Random(curve_seed + n)

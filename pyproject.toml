@@ -37,7 +37,7 @@ Repository = "https://github.com/sachn-cs/factorise"
 "Bug Tracker" = "https://github.com/sachn-cs/factorise/issues"
 
 [project.scripts]
-factorise = "factorise.cli:app"
+factorise = "factorise.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -81,6 +81,7 @@ disable_error_code = ["no-untyped-def", "untyped-decorator"]
 [[tool.mypy.overrides]]
 module = "benchmarks.*"
 disable_error_code = ["no-untyped-def"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "hypothesis.*"

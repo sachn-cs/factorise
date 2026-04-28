@@ -52,7 +52,7 @@ def test_elliptic_curve_run_curve_composite() -> None:
     """Verify ECM curve operations on a composite."""
     ops = EllipticCurveOperations()
     primes = generate_primes_up_to(100)
-    _factor = ops.run_curve(91, 1, primes, 100)
+    _factor = ops.run_curve(91, 1, primes)
     # May find a factor or return None
 
 
@@ -60,7 +60,7 @@ def test_elliptic_curve_run_curve_prime() -> None:
     """Verify ECM curve operations on a prime."""
     ops = EllipticCurveOperations()
     primes = generate_primes_up_to(100)
-    _factor = ops.run_curve(97, 1, primes, 100)
+    _factor = ops.run_curve(97, 1, primes)
     # Should not find a factor for a prime
 
 
@@ -68,7 +68,7 @@ def test_elliptic_curve_run_curve_even() -> None:
     """Verify ECM curve operations on an even number."""
     ops = EllipticCurveOperations()
     primes = generate_primes_up_to(100)
-    _factor = ops.run_curve(100, 1, primes, 100)
+    _factor = ops.run_curve(100, 1, primes)
     # May or may not find a factor
 
 
@@ -108,7 +108,7 @@ def test_elliptic_curve_run_curve_large_composite() -> None:
     """Verify ECM on a larger composite."""
     ops = EllipticCurveOperations()
     primes = generate_primes_up_to(1000)
-    _factor = ops.run_curve(123456789, 1, primes, 1000)
+    _factor = ops.run_curve(123456789, 1, primes)
     # May or may not find a factor
 
 

@@ -13,15 +13,15 @@ from factorise.pipeline import elapsed_ms
 from factorise.stages.ecm_shared import EllipticCurveOperations
 from factorise.stages.ecm_shared import generate_primes_up_to
 
-_LOG = logging.getLogger("factorise")
+LOG = logging.getLogger("factorise")
 
 
 class TwoPassECMStage(EllipticCurveOperations, FactorStage):
     """Two-pass ECM: stage 1 (standard) + stage 2 (higher bound).
 
-    Stage 1 uses a smoothness bound B1 and curves1 curves to find factors
-    where p-1 has only small prime factors. Stage 2 increases the bound to
-    B2 > B1 with fresh curves, extending the reach to medium-sized factors.
+    Stage 1 uses a smoothness bound B1 and *curves1* curves to find factors
+    where ``p-1`` has only small prime factors.  Stage 2 increases the bound
+    to B2 > B1 with fresh curves, extending the reach to medium-sized factors.
     """
 
     name = "ecm_two_pass"
@@ -42,74 +42,110 @@ class TwoPassECMStage(EllipticCurveOperations, FactorStage):
             second_pass_bound: Smoothness bound for stage 2.
 
         """
-        self._first_pass_curves = first_pass_curves
-        self._first_pass_bound = first_pass_bound
-        self._second_pass_curves = second_pass_curves
-        self._second_pass_bound = second_pass_bound
+        self.__first_pass_curves = first_pass_curves
+        self.__first_pass_bound = first_pass_bound
+        self.__second_pass_curves = second_pass_curves
+        self.__second_pass_bound = second_pass_bound
 
     def attempt(self, n: int) -> StageResult:
-        """Attempt to find a factor of *n* using two-pass ECM."""
+        """Attempt to find a factor of *n* using two-pass ECM.
+
+        Args:
+            n: The integer to factor.
+
+        Returns:
+            StageResult describing the outcome.
+
+        """
         start = time.monotonic()
         ensure_integer_input(n)
+        bits = n.bit_length()
+
+        LOG.debug("stage=%s n=%d bits=%d action=attempt", self.name, n, bits)
 
         if n % 2 == 0:
+            elapsed = elapsed_ms(start)
+            LOG.debug(
+                "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=1",
+                self.name, n, 2, elapsed,
+            )
             return StageResult(
                 stage_name=self.name,
                 status=StageStatus.SUCCESS,
                 factor=2,
-                elapsed_ms=elapsed_ms(start),
+                elapsed_ms=elapsed,
                 iterations_used=1,
             )
 
-        first_pass_primes = generate_primes_up_to(self._first_pass_bound)
-        for curve_num in range(self._first_pass_curves):
-            factor = self.run_curve(
-                n,
-                curve_num,
-                first_pass_primes,
-                self._first_pass_bound,
-            )
+        # Stage 1
+        pass1_start = time.monotonic()
+        first_pass_primes = generate_primes_up_to(self.__first_pass_bound)
+        LOG.debug(
+            "stage=%s n=%d action=stage1_primes elapsed_ms=%.2f",
+            self.name, n, elapsed_ms(pass1_start),
+        )
+
+        for curve_num in range(self.__first_pass_curves):
+            factor = self.run_curve(n, curve_num, first_pass_primes)
             if factor is not None and 1 < factor < n:
-                _LOG.debug(
-                    "stage=%s n=%d factor=%d curve=%d",
-                    self.name, n, factor, curve_num + 1,
+                elapsed = elapsed_ms(start)
+                LOG.debug(
+                    "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
+                    self.name, n, factor, elapsed, curve_num + 1,
                 )
                 return StageResult(
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=factor,
-                    elapsed_ms=elapsed_ms(start),
+                    elapsed_ms=elapsed,
                     iterations_used=curve_num + 1,
                 )
 
-        second_pass_primes = generate_primes_up_to(self._second_pass_bound)
-        for curve_num in range(self._second_pass_curves):
+        LOG.debug(
+            "stage=%s n=%d action=stage1_done elapsed_ms=%.2f curves=%d",
+            self.name, n, elapsed_ms(pass1_start), self.__first_pass_curves,
+        )
+
+        # Stage 2
+        pass2_start = time.monotonic()
+        second_pass_primes = generate_primes_up_to(self.__second_pass_bound)
+        LOG.debug(
+            "stage=%s n=%d action=stage2_primes elapsed_ms=%.2f",
+            self.name, n, elapsed_ms(pass2_start),
+        )
+
+        for curve_num in range(self.__second_pass_curves):
             factor = self.run_curve(
                 n,
-                self._first_pass_curves + curve_num,
+                self.__first_pass_curves + curve_num,
                 second_pass_primes,
-                self._second_pass_bound,
             )
             if factor is not None and 1 < factor < n:
-                _LOG.debug(
-                    "stage=%s n=%d factor=%d curve=%d stage=2",
-                    self.name, n, factor,
-                    self._first_pass_curves + curve_num + 1,
+                total_curves = self.__first_pass_curves + curve_num + 1
+                elapsed = elapsed_ms(start)
+                LOG.debug(
+                    "stage=%s n=%d factor=%d elapsed_ms=%.2f iterations=%d",
+                    self.name, n, factor, elapsed, total_curves,
                 )
                 return StageResult(
                     stage_name=self.name,
                     status=StageStatus.SUCCESS,
                     factor=factor,
-                    elapsed_ms=elapsed_ms(start),
-                    iterations_used=self._first_pass_curves + curve_num + 1,
+                    elapsed_ms=elapsed,
+                    iterations_used=total_curves,
                 )
 
+        elapsed = elapsed_ms(start)
+        total_curves = self.__first_pass_curves + self.__second_pass_curves
+        LOG.debug(
+            "stage=%s n=%d status=FAILURE elapsed_ms=%.2f reason=%s",
+            self.name, n, elapsed,
+            f"no factor found after {total_curves} curves",
+        )
         return StageResult(
             stage_name=self.name,
             status=StageStatus.FAILURE,
             factor=None,
-            elapsed_ms=elapsed_ms(start),
-            reason=
-            (f"no factor found after {self._first_pass_curves + self._second_pass_curves} curves"
-            ),
+            elapsed_ms=elapsed,
+            reason=f"no factor found after {total_curves} curves",
         )

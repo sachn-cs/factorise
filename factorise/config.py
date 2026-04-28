@@ -111,6 +111,47 @@ GNFS_TIMEOUT_MIN: int = 1
 GNFS_TIMEOUT_MAX: int = 86400
 
 # ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+def validate_int_range(
+    name: str,
+    value: int,
+    min_val: int,
+    max_val: int,
+) -> None:
+    """Raise ValueError if *value* is outside [*min_val*, *max_val*]."""
+    if not min_val <= value <= max_val:
+        raise ValueError(
+            f"{name} must be {min_val}-{max_val}, got {value}"
+        )
+
+
+def env_int(var: str, default: str) -> int:
+    """Parse an environment variable as an integer.
+
+    Args:
+        var: The environment variable name.
+        default: Default string value if the variable is absent.
+
+    Returns:
+        The parsed integer.
+
+    Raises:
+        ValueError: If the raw value cannot be parsed as an integer.
+
+    """
+    raw = os.getenv(var, default)
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid {var}={raw!r}: must be an integer"
+        ) from exc
+
+
+# ---------------------------------------------------------------------------
 # Base configuration
 # ---------------------------------------------------------------------------
 
@@ -139,18 +180,18 @@ class AlgorithmConfig:
             ValueError: If any field is outside its allowed range.
 
         """
-        if not BATCH_SIZE_MIN <= self.batch_size <= BATCH_SIZE_MAX:
-            raise ValueError(
-                f"batch_size must be {BATCH_SIZE_MIN}-{BATCH_SIZE_MAX}, "
-                f"got {self.batch_size}",)
-        if not MAX_ITERATIONS_MIN <= self.max_iterations <= MAX_ITERATIONS_MAX:
-            raise ValueError(
-                f"max_iterations must be {MAX_ITERATIONS_MIN}-{MAX_ITERATIONS_MAX}, "
-                f"got {self.max_iterations}",)
-        if not MAX_RETRIES_MIN <= self.max_retries <= MAX_RETRIES_MAX:
-            raise ValueError(
-                f"max_retries must be {MAX_RETRIES_MIN}-{MAX_RETRIES_MAX}, "
-                f"got {self.max_retries}",)
+        validate_int_range(
+            "batch_size", self.batch_size, BATCH_SIZE_MIN, BATCH_SIZE_MAX
+        )
+        validate_int_range(
+            "max_iterations",
+            self.max_iterations,
+            MAX_ITERATIONS_MIN,
+            MAX_ITERATIONS_MAX,
+        )
+        validate_int_range(
+            "max_retries", self.max_retries, MAX_RETRIES_MIN, MAX_RETRIES_MAX
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -177,10 +218,9 @@ class FactoriserConfig(AlgorithmConfig):
         """
         seed = os.getenv("FACTORISE_SEED")
         return cls(
-            batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
-            max_iterations=int(
-                os.getenv("FACTORISE_MAX_ITERATIONS", "10000000"),),
-            max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
+            batch_size=env_int("FACTORISE_BATCH_SIZE", "128"),
+            max_iterations=env_int("FACTORISE_MAX_ITERATIONS", "10000000"),
+            max_retries=env_int("FACTORISE_MAX_RETRIES", "20"),
             seed=int(seed) if seed is not None else None,
         )
 
@@ -250,32 +290,37 @@ class PipelineConfig(AlgorithmConfig):
         """
         seed = os.getenv("FACTORISE_SEED")
         return cls(
-            bound_small=int(
-                os.getenv("FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL)),),
-            bound_medium=int(
-                os.getenv("FACTORISE_BOUND_MEDIUM",
-                          str(DEFAULT_BOUND_MEDIUM)),),
-            bound_large=int(
-                os.getenv("FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE)),),
-            bound_xlarge=int(
-                os.getenv("FACTORISE_BOUND_XLARGE",
-                          str(DEFAULT_BOUND_XLARGE)),),
-            trial_division_bound=int(
-                os.getenv("FACTORISE_TRIAL_DIVISION_BOUND", "10000"),),
-            pm1_bound=int(
-                os.getenv("FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND)),),
-            ecm_curves=int(
-                os.getenv("FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES)),),
-            gnfs_timeout=int(
-                os.getenv(
-                    "FACTORISE_GNFS_TIMEOUT",
-                    str(DEFAULT_GNFS_TIMEOUT_SECONDS),
-                ),),
+            bound_small=env_int(
+                "FACTORISE_BOUND_SMALL", str(DEFAULT_BOUND_SMALL)
+            ),
+            bound_medium=env_int(
+                "FACTORISE_BOUND_MEDIUM", str(DEFAULT_BOUND_MEDIUM)
+            ),
+            bound_large=env_int(
+                "FACTORISE_BOUND_LARGE", str(DEFAULT_BOUND_LARGE)
+            ),
+            bound_xlarge=env_int(
+                "FACTORISE_BOUND_XLARGE", str(DEFAULT_BOUND_XLARGE)
+            ),
+            trial_division_bound=env_int(
+                "FACTORISE_TRIAL_DIVISION_BOUND", "10000"
+            ),
+            pm1_bound=env_int(
+                "FACTORISE_PM1_BOUND", str(DEFAULT_PM1_BOUND)
+            ),
+            ecm_curves=env_int(
+                "FACTORISE_ECM_CURVES", str(DEFAULT_ECM_CURVES)
+            ),
+            gnfs_timeout=env_int(
+                "FACTORISE_GNFS_TIMEOUT",
+                str(DEFAULT_GNFS_TIMEOUT_SECONDS),
+            ),
             gnfs_binary=os.getenv("FACTORISE_GNFS_BINARY", "msieve"),
-            max_iterations=int(
-                os.getenv("FACTORISE_MAX_ITERATIONS", "10000000"),),
-            max_retries=int(os.getenv("FACTORISE_MAX_RETRIES", "20")),
-            batch_size=int(os.getenv("FACTORISE_BATCH_SIZE", "128")),
+            max_iterations=env_int(
+                "FACTORISE_MAX_ITERATIONS", "10000000"
+            ),
+            max_retries=env_int("FACTORISE_MAX_RETRIES", "20"),
+            batch_size=env_int("FACTORISE_BATCH_SIZE", "128"),
             seed=int(seed) if seed is not None else None,
         )
 
@@ -348,18 +393,18 @@ class HybridConfig(AlgorithmConfig):
                 is outside its allowed range.
 
         """
-        if not (TRIAL_DIVISION_BOUND_MIN <= self.trial_division_bound <=
-                TRIAL_DIVISION_BOUND_MAX):
-            raise ValueError(
-                f"trial_division_bound must be {TRIAL_DIVISION_BOUND_MIN}-"
-                f"{TRIAL_DIVISION_BOUND_MAX}, got {self.trial_division_bound}",)
-        if not (TRIAL_DIVISION_PRIME_COUNT_MIN <=
-                self.trial_division_prime_count <=
-                TRIAL_DIVISION_PRIME_COUNT_MAX):
-            raise ValueError(
-                f"trial_division_prime_count must be {TRIAL_DIVISION_PRIME_COUNT_MIN}-"
-                f"{TRIAL_DIVISION_PRIME_COUNT_MAX}, got {self.trial_division_prime_count}",
-            )
+        validate_int_range(
+            "trial_division_bound",
+            self.trial_division_bound,
+            TRIAL_DIVISION_BOUND_MIN,
+            TRIAL_DIVISION_BOUND_MAX,
+        )
+        validate_int_range(
+            "trial_division_prime_count",
+            self.trial_division_prime_count,
+            TRIAL_DIVISION_PRIME_COUNT_MIN,
+            TRIAL_DIVISION_PRIME_COUNT_MAX,
+        )
 
     def _validate_pm1(self) -> None:
         """Validate Pollard p-1 smoothness bounds and trial bases.
@@ -375,11 +420,12 @@ class HybridConfig(AlgorithmConfig):
             if bound < PM1_SMOOTHNESS_BOUND_MIN:
                 raise ValueError(
                     f"each pm1_smoothness_bound must be >= {PM1_SMOOTHNESS_BOUND_MIN}, "
-                    f"got {bound}",)
+                    f"got {bound}"
+                )
         for base in self.pm1_trial_bases:
             if base < PM1_TRIAL_BASE_MIN:
                 raise ValueError(
-                    f"each pm1_trial_base must be >= {PM1_TRIAL_BASE_MIN}, got {base}",
+                    f"each pm1_trial_base must be >= {PM1_TRIAL_BASE_MIN}, got {base}"
                 )
 
     def _validate_rho(self) -> None:
@@ -389,21 +435,24 @@ class HybridConfig(AlgorithmConfig):
             ValueError: If any rho parameter is outside its allowed range.
 
         """
-        if not (RHO_MAX_RETRIES_MIN <= self.rho_max_retries <=
-                RHO_MAX_RETRIES_MAX):
-            raise ValueError(
-                f"rho_max_retries must be {RHO_MAX_RETRIES_MIN}-"
-                f"{RHO_MAX_RETRIES_MAX}, got {self.rho_max_retries}",)
-        if not (RHO_MAX_ITERATIONS_MIN <= self.rho_max_iterations <=
-                RHO_MAX_ITERATIONS_MAX):
-            raise ValueError(
-                f"rho_max_iterations must be {RHO_MAX_ITERATIONS_MIN}-"
-                f"{RHO_MAX_ITERATIONS_MAX}, got {self.rho_max_iterations}",)
-        if not (RHO_BATCH_SIZE_MIN <= self.rho_batch_size <=
-                RHO_BATCH_SIZE_MAX):
-            raise ValueError(
-                f"rho_batch_size must be {RHO_BATCH_SIZE_MIN}-"
-                f"{RHO_BATCH_SIZE_MAX}, got {self.rho_batch_size}",)
+        validate_int_range(
+            "rho_max_retries",
+            self.rho_max_retries,
+            RHO_MAX_RETRIES_MIN,
+            RHO_MAX_RETRIES_MAX,
+        )
+        validate_int_range(
+            "rho_max_iterations",
+            self.rho_max_iterations,
+            RHO_MAX_ITERATIONS_MIN,
+            RHO_MAX_ITERATIONS_MAX,
+        )
+        validate_int_range(
+            "rho_batch_size",
+            self.rho_batch_size,
+            RHO_BATCH_SIZE_MIN,
+            RHO_BATCH_SIZE_MAX,
+        )
 
     def _validate_ecm(self) -> None:
         """Validate ECM curve counts and smoothness bounds.
@@ -413,30 +462,35 @@ class HybridConfig(AlgorithmConfig):
                 if the second pass bound is not greater than the first.
 
         """
-        if not (ECM_CURVES_MIN <= self.ecm_first_pass_curves <= ECM_CURVES_MAX):
-            raise ValueError(
-                f"ecm_first_pass_curves must be {ECM_CURVES_MIN}-"
-                f"{ECM_CURVES_MAX}, got {self.ecm_first_pass_curves}",)
-        if not (ECM_FIRST_PASS_BOUND_MIN <= self.ecm_first_pass_bound <=
-                ECM_FIRST_PASS_BOUND_MAX):
-            raise ValueError(
-                f"ecm_first_pass_bound must be {ECM_FIRST_PASS_BOUND_MIN}-"
-                f"{ECM_FIRST_PASS_BOUND_MAX}, got {self.ecm_first_pass_bound}",)
-        if not (ECM_CURVES_MIN <= self.ecm_second_pass_curves <=
-                ECM_CURVES_MAX):
-            raise ValueError(
-                f"ecm_second_pass_curves must be {ECM_CURVES_MIN}-"
-                f"{ECM_CURVES_MAX}, got {self.ecm_second_pass_curves}",)
-        if not (ECM_SECOND_PASS_BOUND_MIN <= self.ecm_second_pass_bound <=
-                ECM_SECOND_PASS_BOUND_MAX):
-            raise ValueError(
-                f"ecm_second_pass_bound must be {ECM_SECOND_PASS_BOUND_MIN}-"
-                f"{ECM_SECOND_PASS_BOUND_MAX}, got {self.ecm_second_pass_bound}",
-            )
+        validate_int_range(
+            "ecm_first_pass_curves",
+            self.ecm_first_pass_curves,
+            ECM_CURVES_MIN,
+            ECM_CURVES_MAX,
+        )
+        validate_int_range(
+            "ecm_first_pass_bound",
+            self.ecm_first_pass_bound,
+            ECM_FIRST_PASS_BOUND_MIN,
+            ECM_FIRST_PASS_BOUND_MAX,
+        )
+        validate_int_range(
+            "ecm_second_pass_curves",
+            self.ecm_second_pass_curves,
+            ECM_CURVES_MIN,
+            ECM_CURVES_MAX,
+        )
+        validate_int_range(
+            "ecm_second_pass_bound",
+            self.ecm_second_pass_bound,
+            ECM_SECOND_PASS_BOUND_MIN,
+            ECM_SECOND_PASS_BOUND_MAX,
+        )
         if self.ecm_second_pass_bound <= self.ecm_first_pass_bound:
             raise ValueError(
                 f"ecm_second_pass_bound ({self.ecm_second_pass_bound}) must be > "
-                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})",)
+                f"ecm_first_pass_bound ({self.ecm_first_pass_bound})"
+            )
 
     def _validate_siqs(self) -> None:
         """Validate the SIQS maximum bit length.
@@ -445,11 +499,12 @@ class HybridConfig(AlgorithmConfig):
             ValueError: If siqs_max_bit_length is outside its allowed range.
 
         """
-        if not (SIQS_MAX_BIT_LENGTH_MIN <= self.siqs_max_bit_length <=
-                SIQS_MAX_BIT_LENGTH_MAX):
-            raise ValueError(
-                f"siqs_max_bit_length must be {SIQS_MAX_BIT_LENGTH_MIN}-"
-                f"{SIQS_MAX_BIT_LENGTH_MAX}, got {self.siqs_max_bit_length}",)
+        validate_int_range(
+            "siqs_max_bit_length",
+            self.siqs_max_bit_length,
+            SIQS_MAX_BIT_LENGTH_MIN,
+            SIQS_MAX_BIT_LENGTH_MAX,
+        )
 
     def _validate_gnfs(self) -> None:
         """Validate the GNFS timeout.
@@ -458,11 +513,12 @@ class HybridConfig(AlgorithmConfig):
             ValueError: If gnfs_timeout_seconds is outside its allowed range.
 
         """
-        if not (GNFS_TIMEOUT_MIN <= self.gnfs_timeout_seconds <=
-                GNFS_TIMEOUT_MAX):
-            raise ValueError(
-                f"gnfs_timeout_seconds must be {GNFS_TIMEOUT_MIN}-"
-                f"{GNFS_TIMEOUT_MAX}, got {self.gnfs_timeout_seconds}",)
+        validate_int_range(
+            "gnfs_timeout_seconds",
+            self.gnfs_timeout_seconds,
+            GNFS_TIMEOUT_MIN,
+            GNFS_TIMEOUT_MAX,
+        )
 
     def digit_threshold_bucket(self, bit_length: int) -> int:
         """Classify an integer by bit length into a routing bucket.

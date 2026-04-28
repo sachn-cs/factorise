@@ -199,6 +199,206 @@ def test_pollard_rho_stage_failure() -> None:
 
 
 # ---------------------------------------------------------------------------
+# gnfs_optimized.py — utility functions and sieving paths
+# ---------------------------------------------------------------------------
+
+def test_legendre_symbol_p_equals_2() -> None:
+    """Verify Legendre symbol handles p=2."""
+    from factorise.stages.gnfs_optimized import legendre_symbol
+
+    assert legendre_symbol(3, 2) == 1
+    assert legendre_symbol(4, 2) == 0
+
+
+def test_legendre_symbol_a_mod_p_zero() -> None:
+    """Verify Legendre symbol returns 0 when a mod p is 0."""
+    from factorise.stages.gnfs_optimized import legendre_symbol
+
+    # a=6, p=3 -> 6 % 3 == 0
+    assert legendre_symbol(6, 3) == 0
+
+
+def test_legendre_symbol_regular() -> None:
+    """Verify Legendre symbol for regular cases."""
+    from factorise.stages.gnfs_optimized import legendre_symbol
+
+    # (3/7) = 3^3 mod 7 = 27 mod 7 = 6 = -1 (quadratic non-residue)
+    assert legendre_symbol(3, 7) == -1
+    # (2/7) = 2^3 mod 7 = 8 mod 7 = 1 (quadratic residue)
+    assert legendre_symbol(2, 7) == 1
+
+
+def test_sqrt_mod_prime_n_mod_p_zero() -> None:
+    """Verify sqrt_mod_prime returns (0,0) when n % p == 0."""
+    from factorise.stages.gnfs_optimized import sqrt_mod_prime
+
+    result = sqrt_mod_prime(9, 3)
+    assert result == (0, 0)
+
+
+def test_sqrt_mod_prime_p_equals_2() -> None:
+    """Verify sqrt_mod_prime handles p=2."""
+    from factorise.stages.gnfs_optimized import sqrt_mod_prime
+
+    result = sqrt_mod_prime(1, 2)
+    assert result == (1, 0)
+
+
+def test_sqrt_mod_prime_p_mod_4_equals_3() -> None:
+    """Verify sqrt_mod_prime uses p%4==3 shortcut."""
+    from factorise.stages.gnfs_optimized import sqrt_mod_prime
+
+    # p=7, n=2: sqrt(2) mod 7 = 3 or 4 since 3^2=9=2 mod 7
+    result = sqrt_mod_prime(2, 7)
+    assert result is not None
+    r, neg_r = result
+    assert (r * r) % 7 == 2
+    assert (neg_r * neg_r) % 7 == 2
+
+
+def test_sqrt_mod_prime_non_residue() -> None:
+    """Verify sqrt_mod_prime returns None for non-residues."""
+    from factorise.stages.gnfs_optimized import sqrt_mod_prime
+
+    # 3 is not a quadratic residue mod 7
+    result = sqrt_mod_prime(3, 7)
+    assert result is None
+
+
+def test_sqrt_mod_prime_tonelli_shanks() -> None:
+    """Verify sqrt_mod_prime uses Tonelli-Shanks for p%4!=3."""
+    from factorise.stages.gnfs_optimized import sqrt_mod_prime
+
+    # p=11, n=5 is a quadratic residue: 5^5 mod 11 = 3125 mod 11 = 1
+    result = sqrt_mod_prime(5, 11)
+    assert result is not None
+    r, neg_r = result
+    assert (r * r) % 11 == 5
+    assert (neg_r * neg_r) % 11 == 5
+
+
+def test_polynomial_evaluate_with_mod() -> None:
+    """Verify Polynomial.evaluate applies modulo."""
+    from factorise.stages.gnfs_optimized import Polynomial
+
+    poly = Polynomial(a=1, b=0, c=-5)  # x^2 - 5
+    assert poly.evaluate(7, mod=11) == (49 - 5) % 11  # = 44 % 11 = 0
+
+
+def test_polynomial_evaluate_without_mod() -> None:
+    """Verify Polynomial.evaluate without mod."""
+    from factorise.stages.gnfs_optimized import Polynomial
+
+    poly = Polynomial(a=1, b=0, c=-5)
+    assert poly.evaluate(7) == 44  # 7^2 - 5
+
+
+def test_factor_over_base_negative_value() -> None:
+    """Verify _factor_over_base handles negative values."""
+    from factorise.stages.gnfs_optimized import factor_over_base
+
+    primes = [2, 3, 5]
+    result = factor_over_base(-10, primes)
+    # -10 -> 10, 10 = 2 * 5
+    assert result is not None
+    assert result == [1, 0, 1]
+
+
+def test_factor_over_base_value_le_1() -> None:
+    """Verify _factor_over_base handles value <= 1."""
+    from factorise.stages.gnfs_optimized import factor_over_base
+
+    primes = [2, 3, 5, 7]
+    result = factor_over_base(1, primes)
+    assert result == [0, 0, 0, 0]
+
+
+def test_factor_over_base_remaining_prime() -> None:
+    """Verify _factor_over_base when remaining is a prime in base."""
+    from factorise.stages.gnfs_optimized import factor_over_base
+
+    primes = [2, 3, 5, 7, 11]
+    # 6 = 2 * 3, remaining = 1, needs padding
+    result = factor_over_base(6, primes)
+    assert result == [1, 1, 0, 0, 0]
+
+
+def test_select_polynomial() -> None:
+    """Verify _select_polynomial creates valid polynomial."""
+    from factorise.stages.gnfs_optimized import select_polynomial
+
+    poly, m = select_polynomial(1000)
+    assert poly.a == 1
+    assert poly.b == 0
+    assert poly.c == -m
+    assert m > 0
+
+
+def test_build_factor_bases() -> None:
+    """Verify _build_factor_bases builds rational and algebraic bases."""
+    from factorise.stages.gnfs_optimized import build_factor_bases
+
+    n = 91
+    m = 4
+    rational, algebraic = build_factor_bases(n, m, bound=20)
+    # Rational base: primes where n is quadratic residue mod p
+    # Algebraic base: primes where m is quadratic residue mod p
+    assert isinstance(rational, list)
+    assert isinstance(algebraic, list)
+
+
+def test_gnfs_optimized_even_input() -> None:
+    """Verify GNFS handles even inputs."""
+    from factorise.stages.gnfs_optimized import OptimizedGNFSStage
+
+    stage = OptimizedGNFSStage()
+    result = stage.attempt(2**62 + 1)  # 62 bits, even composite
+    # May succeed or fail but should not crash
+    assert result.status in (StageStatus.SUCCESS, StageStatus.FAILURE)
+
+
+# ---------------------------------------------------------------------------
+# ecm_shared.py — remaining gaps
+# ---------------------------------------------------------------------------
+
+
+def test_elliptic_curve_point_add_gcd_1() -> None:
+    """Verify point_add when denom gcd is 1."""
+    from factorise.stages.ecm_shared import EllipticCurveOperations
+
+    ops = EllipticCurveOperations()
+    n = 91
+    # x1=1, y1=2, x2=3, y2=4, denom = 3-1=2, gcd(2,91)=1
+    x, y, g = ops.point_add(1, 2, 3, 4, 1, n)
+    assert g == 1
+    assert isinstance(x, int)
+    assert isinstance(y, int)
+
+
+def test_elliptic_curve_multiply_point_large_k() -> None:
+    """Verify multiply_point with large k."""
+    from factorise.stages.ecm_shared import EllipticCurveOperations
+
+    ops = EllipticCurveOperations()
+    n = 91
+    result = ops.multiply_point([2, 1], 100, 1, n)
+    assert result is None or isinstance(result, int)
+
+
+def test_elliptic_curve_point_double_y_even() -> None:
+    """Verify point_double when y is even (gcd may be > 1)."""
+    from factorise.stages.ecm_shared import EllipticCurveOperations
+
+    ops = EllipticCurveOperations()
+    n = 91  # 7*13, y=14 has factor 7
+    x, y, g = ops.point_double(5, 14, 1, n)
+    # gcd(2*y, n) = gcd(28, 91) = 7
+    assert isinstance(x, int)
+    assert isinstance(y, int)
+    assert isinstance(g, int)
+
+
+# ---------------------------------------------------------------------------
 # Additional ecm_shared coverage
 # ---------------------------------------------------------------------------
 

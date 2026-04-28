@@ -35,7 +35,7 @@ Key capabilities:
 - `factorise(n, config=None)` returns a structured `FactorisationResult`.
 - `is_prime(n)` is available as a standalone function.
 - Optional reproducibility via `seed` / `FACTORISE_SEED`.
-- CLI with validated log levels and JSON output mode.
+- CLI with validated log levels and ANSI output.
 - `HybridFactorisationEngine` for adaptive algorithm selection by input size.
 
 ## 2. Quick Start
@@ -58,9 +58,10 @@ factorise/
   __init__.py     Public exports and version.
   core.py         Algorithms, validation, domain exceptions.
   config.py       Configuration dataclasses with validation.
-  pipeline.py     Multi-stage pipeline, FactorStage interface, StageFactory.
+  pipeline.py     Multi-stage pipeline, FactorStage interface.
   hybrid.py       Adaptive hybrid engine with threshold routing.
   cli.py          CLI command, display, logging, signal handling.
+  utils.py        Shared utilities (prime sieve).
   py.typed        PEP 561 marker.
   stages/
     __init__.py         Package initialiser.
@@ -73,7 +74,7 @@ factorise/
     quadratic_sieve.py  Quadratic Sieve stage.
     siqs.py             Self-Initializing Quadratic Sieve stage.
     qs_shared.py        Shared QS utilities (factor base, Gaussian elimination).
-    gnfs.py             GNFS external tool adapter stage.
+    gnfs_optimized.py   Pure-Python GNFS stage for 60-128 bit inputs.
 
 tests/
   conftest.py                Shared test constants.
@@ -88,9 +89,9 @@ tests/
 
 benchmarks/
   timing.py       Timing benchmarks.
-  memory.py       Allocation/memory benchmarks.
-  stress.py       Process-based stress checks and CI gate.
-  inputs.py       Shared benchmark datasets.
+  memory.py         Allocation/memory benchmarks.
+  stress.py         Process-based stress checks and CI gate.
+  inputs.py         Shared benchmark datasets.
 
 .github/workflows/ci.yml
   Lint, typecheck, tests, stress gate, security audit, build/release checks.
@@ -236,7 +237,6 @@ result = engine.attempt(123456789)
 factorise 123456789
 factorise 123456789 --verbose
 factorise 123456789 --log-level INFO
-factorise 123456789 --log-format json
 ```
 
 **Note:** The CLI does not accept negative integers directly because the leading
@@ -299,7 +299,7 @@ Design choices:
 - Explicit domain failure (`FactorisationError`) for exhausted compute budgets.
 - `FactorStage` abstract interface for composable, replaceable stages.
 - `StageResult` structured output for observability and debugging.
-- Explicit `StageFactory` for constructing stage instances from config (no global registry).
+- Explicit configuration-driven stage construction (no global registry).
 - Generator-based recursive splitting to keep memory bounded.
 
 Scalability and safety:
@@ -311,11 +311,9 @@ Scalability and safety:
 ## 10. Logging / Troubleshooting
 
 Logging model:
-- Library logging uses `loguru` with a default stderr handler; callers can
-  configure their own sinks to control verbosity.
+- Library logging uses the standard-library `logging` module under the `"factorise"` logger name.
 - CLI enables logging and validates allowed levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
-- Human-readable logging remains the default.
-- JSON mode emits one JSON object per line with operational fields.
+- All logs use a structured `key=value` format for machine-parseable observability.
 - Stage-level logging includes: `stage`, `n`, `factor`, `status`, `reason`, `elapsed_ms`.
 
 Stage result statuses:

@@ -1,4 +1,8 @@
-"""Shared utility functions for the factorise package."""
+"""Shared utility functions for the factorise package.
+
+Provides prime-number generation via the Sieve of Eratosthenes, consumed by
+the ECM and GNFS stages.
+"""
 
 from __future__ import annotations
 
@@ -18,11 +22,13 @@ def sieve_primes(bound: int) -> list[int]:
     """
     if bound < 2:
         return []
-    is_prime_arr = bytearray(b'\x01') * (bound + 1)
-    is_prime_arr[0:2] = b'\x00\x00'
-    for i in range(2, int(bound**0.5) + 1):
+    is_prime_arr = bytearray(b"\x01") * (bound + 1)
+    is_prime_arr[0:2] = b"\x00\x00"
+    limit = int(bound**0.5) + 1
+    for i in range(2, limit):
         if is_prime_arr[i]:
-            step = i
             start = i * i
-            is_prime_arr[start:bound + 1:step] = b'\x00' * ((bound - start) // step + 1)
+            step = i
+            count = (bound - start) // step + 1
+            is_prime_arr[start : bound + 1 : step] = b"\x00" * count
     return [i for i in range(2, bound + 1) if is_prime_arr[i]]

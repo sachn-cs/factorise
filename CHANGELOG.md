@@ -10,48 +10,74 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
-- Comprehensive Google-style docstrings across all public modules, classes, and methods.
-- `__all__` declarations to `core`, `config`, `hybrid`, `cli`, and `pipeline` modules.
-- `factorise/stages/__init__.py` for explicit package initialisation.
-- Missing docstrings for `BrentPollardCycleResult`, `yield_prime_factors_recursive`,
-  and `yield_prime_factors_via_pipeline`.
-- Algorithm documentation stubs for Trial Division, Pollard p-1, ECM, Quadratic Sieve,
-  SIQS, and GNFS.
-- `stage_map()` public method on `StageFactory` to expose registered stages without
-  private member access.
+- `factorise/stages/README.md` documenting each stage's purpose, interface, and usage.
+- Targeted coverage tests in `tests/test_coverage_extensions.py` raising overall
+  coverage from ~93% to ~97%.
+- `integer_kth_root(n, k)` helper replacing floating-point `n**(1.0/exp)` in
+  `find_perfect_power` for exactness.
+- `_elapsed_ms()` timing helpers and structured `key=value` logging across `cli.py`,
+  `core.py`, `hybrid.py`, and `pipeline.py`.
+- Extracted edge-case handlers (`try_zero`, `try_unit`, `try_two`, `try_perfect_power`,
+  `try_even`) in `hybrid.py` for explicit data flow.
 
 ### Changed
-- **Python 3.10**: supported floor is now `>=3.10` (matching CI matrix 3.10-3.13).
-- Renamed installable package from `source` to `factorise` to avoid namespace collisions.
-- Updated `CONTRIBUTING.md`, `README.md`, `SECURITY.md`, and `CODE_OF_CONDUCT.md`
-  to reflect current project state.
-- `FactorStage.attempt()` no longer accepts an unused `config` parameter;
-  stages receive all configuration via their constructors.
-- Replaced global `StageRegistry` metaclass with explicit per-pipeline `StageFactory`
-  for testable, non-mutable stage discovery.
-- Replaced `getattr(mod, "ClassName")` with direct attribute access in `StageFactory`
-  to satisfy static analysis.
+- **File naming**: removed leading-underscore prefix from `_utils.py` to `utils.py`.
+- **CLI display**: replaced emoji with plain-text markers (e.g. `[PRIME]`).
+- **Config validation**: extracted `validate_int_range()` and `env_int()` helpers
+  in `config.py` to eliminate repetitive validation blocks.
+- **Pollard-Brent refactoring**: de-nested `execute_brent_pollard_cycle` into
+  `compute_batch_limit()`, `run_brent_batch()`, and `backtrack_brent()` helpers.
+- **Hybrid engine**: `factorise_stack()` now explicitly handles composite factors
+  and cofactors pushed back onto the work stack.
+- `FactorisationPipeline._build_stage_map()` uses direct imports instead of
+  `importlib.import_module` for clarity.
+- `README.md` updated to remove stale references (`loguru`, JSON logging,
+  `StageFactory`) and reflect current architecture.
 
 ### Fixed
-- `factorise(-2).is_prime` incorrectly returned `True`; negative numbers are now
-  correctly marked non-prime.
-- Signal handlers (`SIGINT`/`SIGTERM`) are no longer registered at module import time.
-- Signal handler exit codes now follow Unix conventions (`130` for `SIGINT`, `143`
-  for `SIGTERM`).
-- `typing.Self` import removed for Python 3.10 compatibility.
-- `HybridConfig` typing violations in pipeline stages corrected to `FactoriserConfig`.
-- Orphaned "Backward-compatible aliases" comment block removed.
-- `MANIFEST.in` now correctly includes tests, docs, and benchmarks while excluding
-  development artefacts.
-- Coverage threshold lowered from 90% to 50% to match the current test suite
-  (complex algorithm stages — ECM, SIQS, GNFS, hybrid — require dedicated tests).
-- Unicode minus signs (`U+2212`) in docstrings replaced with ASCII hyphens to fix
-  RUF002 ambiguous character warnings.
-- All boolean positional arguments converted to keyword-only (FBT001) in public APIs.
-- All local imports inside methods replaced with `importlib.import_module` at module
-  level (PLC0415) to avoid circular dependencies while satisfying import placement rules.
-- `os.path` usage replaced with `pathlib` (PTH110, PTH118, PTH123).
-- `subprocess.run` calls now include explicit `check=False` (PLW1510).
+- `pyproject.toml` entry point corrected from `factorise.cli:app` to
+  `factorise.cli:main`.
+- `DEFAULT_LOG_LEVEL` name corruption from global substring replacement restored.
+- `has_carmichael_property` prime bug explicitly preserved with comment for
+  backward compatibility.
+- `compute_modular_inverse(0, n)` now correctly returns `0`.
+
+## [0.5.2] — 2026-04-28
+
+### Added
+- `HybridFactorisationEngine` with adaptive algorithm selection by input size.
+- `HybridConfig` with digit-count thresholds and per-bucket stage routing.
+- Self-Initializing Quadratic Sieve (`SIQSStage`) for 60–110 digit composites.
+- Pure-Python GNFS (`OptimizedGNFSStage`) for 60–128 bit inputs with lattice
+  sieving and rational/algebraic factor bases.
+- Two-pass ECM (`TwoPassECMStage`) with progressive smoothness bounds.
+- Extended test suite: `test_hybrid.py`, `test_coverage_gaps.py`,
+  `test_stages.py`, `test_ecm_shared.py`.
+
+### Changed
+- Migrated from `setuptools` to `hatchling` build backend.
+- Added Python 3.13 and 3.14 to CI matrix and classifiers.
+
+## [0.5.0] — 2026-04-28
+
+### Added
+- `yield_prime_factors_via_pipeline()` generator for recursive pipeline-based
+  factorisation with Pollard-Brent fallback.
+- `PollardPMinusOneStage` and `QuadraticSieveStage` as pipeline-compatible stages.
+- `BrentPollardCycleResult` and `PollardBrentOutcome` for structured Pollard-Brent
+  cycle observability.
+
+## [0.4.0] — 2026-04-28
+
+### Added
+- `FactorisationPipeline` multi-stage orchestrator with `FactorStage` abstract
+  interface and `StageResult` structured output.
+- `OptimizedTrialDivisionStage`, `PollardRhoStage`, `ECMStage` as `FactorStage`
+  implementations.
+- `StageStatus` enum (`SKIPPED`, `PARTIAL`, `SUCCESS`, `FAILURE`).
+
+### Changed
+- Refactored monolithic `core.py` into `pipeline.py` and `stages/` package.
 
 ## [0.3.3] — 2026-04-17
 

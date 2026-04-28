@@ -23,5 +23,5 @@ repos:
     hooks:
       - id: mypy
         args: [--strict, factorise/, tests/, benchmarks/]
-        additional_dependencies: [typer, rich, loguru, pytest]
+        additional_dependencies: [typer, rich, pytest]
         pass_filenames: false

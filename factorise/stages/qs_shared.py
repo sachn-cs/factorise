@@ -1,7 +1,8 @@
 """Shared routines for quadratic sieve-based stages.
 
 Provides prime testing, smoothness checking, linear algebra over GF(2),
-and factor extraction used by SIQSStage.
+and factor extraction used by :class:`~factorise.stages.quadratic_sieve.QuadraticSieveStage`
+and :class:`~factorise.stages.siqs.SIQSStage`.
 """
 
 from __future__ import annotations
@@ -10,14 +11,24 @@ import math
 from typing import TypedDict
 
 
+__all__ = [
+    "QSRelation",
+    "extract_factor",
+    "factor_over_base",
+    "find_dependency",
+    "is_small_prime",
+]
+
+
 class QSRelation(TypedDict):
     """A smooth relation from the Quadratic Sieve or SIQS.
 
     Attributes:
         a: The sieve position (integer candidate).
-        a2_mod_n: The value (a^2 mod n) that factors over the prime base.
+        a2_mod_n: The value ``(a^2 mod n)`` that factors over the prime base.
         exponents: List of exponents, one per prime in the factor base.
     """
+
     a: int
     a2_mod_n: int
     exponents: list[int]
@@ -30,7 +41,7 @@ def is_small_prime(candidate: int) -> bool:
         candidate: The integer to test.
 
     Returns:
-        True if candidate is prime, False otherwise.
+        ``True`` if *candidate* is prime, ``False`` otherwise.
 
     """
     if candidate < 2:
@@ -43,32 +54,31 @@ def is_small_prime(candidate: int) -> bool:
         return candidate == 5
     if candidate % 7 == 0:
         return candidate == 7
-    # Check divisibility up to sqrt(candidate) / 2 since we already tested 2,3,5,7
     limit = int(candidate**0.5) + 1
     divisor = 11
-    step = 2  # 11, 13, 17, 19, 23, 25(=5), ...
+    step = 2
     while divisor < limit:
         if candidate % divisor == 0:
             return False
         divisor += step
-        step = 4 if step == 2 else 2  # alternate between +2 and +4
+        step = 4 if step == 2 else 2
     return True
 
 
 def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
-    """Decompose value completely over the given prime base.
+    """Decompose *value* completely over the given prime base.
 
-    The first element of the prime base is treated as -1 (sign handling).
+    The first element of the prime base is treated as ``-1`` (sign handling).
     Returns a list of exponents, one per prime in the base, if the value
-    factors completely; otherwise returns None.
+    factors completely; otherwise returns ``None``.
 
     Args:
         value: The integer to factor.
-        prime_base: A list of primes where the first element is -1.
+        prime_base: A list of primes where the first element is ``-1``.
 
     Returns:
-        A list of exponents indexed parallel to prime_base, or None if
-        value has a prime factor outside the base.
+        A list of exponents indexed parallel to *prime_base*, or ``None`` if
+        *value* has a prime factor outside the base.
 
     """
     exponents = [0] * len(prime_base)
@@ -94,7 +104,6 @@ def factor_over_base(value: int, prime_base: list[int]) -> list[int] | None:
     if remaining == 1:
         return exponents
 
-    # Check if remaining is in prime_base using index lookup
     for idx, p in enumerate(prime_base):
         if p == remaining:
             exponents[idx] += 1
@@ -109,17 +118,14 @@ def find_dependency(
 ) -> list[int] | None:
     """Find a linear dependency via Gaussian elimination over GF(2).
 
-    Returns a list of relation indices that form the dependency, or None.
-
     Args:
-        relations: List of relation dicts with "exponents" key.
+        relations: List of relation dicts with ``"exponents"`` key.
         num_primes: Size of the prime base.
 
     Returns:
-        List of relation indices in the dependency, or None.
+        List of relation indices in the dependency, or ``None``.
 
     """
-    # Filter to non-trivial relations (have at least one odd exponent)
     non_trivial: list[tuple[int, list[int]]] = []
     for idx, rel in enumerate(relations):
         if any(exp % 2 == 1 for exp in rel["exponents"]):
@@ -128,7 +134,6 @@ def find_dependency(
     if len(non_trivial) < num_primes:
         return None
 
-    # Build rows: (mask, history_bitmask, original_index)
     rows: list[tuple[int, int, int]] = []
     for orig_idx, rel_exp in non_trivial:
         mask = 0
@@ -143,11 +148,9 @@ def find_dependency(
     if len(rows) < num_primes:
         return None
 
-    # Forward elimination
     row_idx = 0
     num_rows = len(rows)
     for col in range(num_primes):
-        # Find pivot
         pivot = -1
         for r in range(row_idx, num_rows):
             if (rows[r][0] >> col) & 1:
@@ -156,10 +159,8 @@ def find_dependency(
         if pivot == -1:
             continue
 
-        # Swap
         rows[row_idx], rows[pivot] = rows[pivot], rows[row_idx]
 
-        # Eliminate
         for r in range(num_rows):
             if r != row_idx and ((rows[r][0] >> col) & 1):
                 rows[r] = (rows[r][0] ^ rows[row_idx][0],
@@ -170,10 +171,8 @@ def find_dependency(
         if row_idx >= num_rows:
             break
 
-    # Back-substitution: find zero-mask row with non-zero history
     for mask, history, _orig_idx in rows:
         if mask == 0 and history != 0:
-            # Extract which non-trivial relations combine to zero
             result: list[int] = []
             h = history
             bit = 0
@@ -197,18 +196,17 @@ def extract_factor(
 
     Args:
         n: The composite integer being factored.
-        relations: List of relation dicts containing "a" and "exponents".
+        relations: List of relation dicts containing ``"a"`` and ``"exponents"``.
         dependency: List of relation indices forming the dependency.
         prime_base: The prime base used for factorization.
 
     Returns:
-        A non-trivial factor of n if one is found, otherwise None.
+        A non-trivial factor of *n* if one is found, otherwise ``None``.
 
     """
     if not dependency:
         return None
 
-    # Build set of dependency indices for O(1) lookup
     dep_set = set(dependency)
 
     product_x = 1
