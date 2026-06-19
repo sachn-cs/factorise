@@ -10,10 +10,11 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
-    { name = "sachin", email = "chakravarthy1393966@gmail.com" }
+    { name = "sachin", email = "sachncs@gmail.com" }
 ]
 keywords = [
-    "prime", "factorisation", "miller-rabin", "pollard-rho", "math"
+    "prime", "factorisation", "factorization", "miller-rabin", "pollard-rho",
+    "math", "number-theory", "cryptography", "ecm", "quadratic-sieve", "gnfs"
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -34,7 +35,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/sachn-cs/factorise"
 Repository = "https://github.com/sachn-cs/factorise"
+Documentation = "https://github.com/sachn-cs/factorise/tree/master/docs"
 "Bug Tracker" = "https://github.com/sachn-cs/factorise/issues"
+Changelog = "https://github.com/sachn-cs/factorise/blob/master/CHANGELOG.md"
 
 [project.scripts]
 factorise = "factorise.cli:main"
@@ -52,6 +55,12 @@ dev = [
     "pip-audit>=2.9.0",
     "cyclonedx-bom>=4.1.0",
     "pre-commit>=4.1.0",
+]
+docs = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.24.0",
+    "pymdown-extensions>=10.0.0",
 ]
 
 [tool.hatch.version]

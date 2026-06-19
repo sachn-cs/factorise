@@ -1,234 +1,55 @@
 # factorise
 
 [![CI](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sachn-cs/factorise/branch/master/graph/badge.svg)](https://codecov.io/gh/sachn-cs/factorise)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.10+](https://img.shields.io/pypi/pyversions/factorise.svg)](https://pypi.org/project/factorise/)
+[![PyPI version](https://img.shields.io/pypi/v/factorise.svg)](https://pypi.org/project/factorise/)
+[![Downloads](https://img.shields.io/pypi/dm/factorise.svg)](https://pypi.org/project/factorise/)
+[![Security Policy](https://img.shields.io/badge/Security-MIT-red.svg)](SECURITY.md)
 
-Deterministic prime factorisation for Python using Miller-Rabin primality testing and a multi-stage factorisation pipeline supporting Trial Division, Pollard's p-1, Pollard's Rho (Brent), ECM, Quadratic Sieve, and a GNFS adapter for very large inputs.
+Deterministic prime factorisation for Python using Miller-Rabin primality testing and a multi-stage factorisation pipeline.
 
-## 1. Project Overview
+## Features
 
-`factorise` provides:
-- A library API for prime decomposition of signed integers.
-- Deterministic primality checks for all `n < 2^64`.
-- Bounded retry/iteration controls to avoid unbounded runtime.
-- A configurable multi-stage pipeline that escalates from fast to powerful algorithms.
-- A CLI for operational use and debugging.
-- A hybrid engine that adaptively routes each cofactor to the optimal algorithm.
+- **Zero runtime dependencies** — all algorithms implemented from scratch using only the Python standard library
+- **Multi-stage pipeline** — escalates from fast to powerful algorithms: Trial Division, Pollard p-1, Pollard's Rho (Brent), ECM, Quadratic Sieve, SIQS, and GNFS adapter
+- **Deterministic primality** — verified for all `n < 2^64` using Miller-Rabin
+- **Hybrid engine** — adaptive algorithm selection based on input size
+- **CLI tool** — operational use and debugging with structured logging
+- **Reproducible results** — optional deterministic seeding for Pollard-Brent retries
+- **Configurable** — environment variables or programmatic configuration
+- **Type-safe** — full type hints (PEP 484) and PEP 561 marker
 
-Multi-stage factorisation pipeline order:
-
-```
-validate_int
-  -> is_prime (Miller-Rabin)
-  -> Pipeline (stages in order)
-       1. Trial Division  (small primes, O(π(b)))
-       2. Pollard p-1   (smooth factors, p-1 method)
-       3. Pollard's Rho (Brent variant, general-purpose)
-       4. ECM           (Elliptic Curve Method, medium factors)
-       5. Quadratic Sieve (medium-to-large, up to ~100 digits)
-       6. GNFS          (external adapter, very large inputs)
-  -> factorise()
-```
-
-Key capabilities:
-- `factorise(n, config=None)` returns a structured `FactorisationResult`.
-- `is_prime(n)` is available as a standalone function.
-- Optional reproducibility via `seed` / `FACTORISE_SEED`.
-- CLI with validated log levels and ANSI output.
-- `HybridFactorisationEngine` for adaptive algorithm selection by input size.
-
-## 2. Quick Start
+## Installation
 
 ```bash
-# Install
 pip install factorise
-
-# Using the library (requires Python 3.10+)
-python -c "from factorise import factorise; print(factorise(123456789).expression())"
-
-# Using the CLI
-factorise 123456789 --verbose
 ```
 
-## 3. Repository Structure
+Or install from source:
 
-```text
-factorise/
-  __init__.py     Public exports and version.
-  core.py         Algorithms, validation, domain exceptions.
-  config.py       Configuration dataclasses with validation.
-  pipeline.py     Multi-stage pipeline, FactorStage interface.
-  hybrid.py       Adaptive hybrid engine with threshold routing.
-  cli.py          CLI command, display, logging, signal handling.
-  utils.py        Shared utilities (prime sieve).
-  py.typed        PEP 561 marker.
-  stages/
-    __init__.py         Package initialiser.
-    trial_division.py   Trial Division stage (wheel-optimised).
-    improved_pm1.py     Pollard p-1 stage (progressive bounds).
-    pollard_rho.py      Pollard-Rho (Brent) stage.
-    ecm.py              Elliptic Curve Method stage.
-    ecm_two_pass.py     Two-pass ECM stage.
-    ecm_shared.py       Shared elliptic-curve arithmetic.
-    quadratic_sieve.py  Quadratic Sieve stage.
-    siqs.py             Self-Initializing Quadratic Sieve stage.
-    qs_shared.py        Shared QS utilities (factor base, Gaussian elimination).
-    gnfs_optimized.py   Pure-Python GNFS stage for 60-128 bit inputs.
-
-tests/
-  conftest.py                Shared test constants.
-  test_core_config.py        Config, model, and validation behavior.
-  test_core_primality.py     Primality behavior and edge cases.
-  test_core_factorisation.py Factorisation semantics and determinism.
-  test_core_pollard.py       Pollard-Brent and flattening behavior.
-  test_core_edge_cases.py    Internal algorithm edge paths.
-  test_pipeline.py           Multi-stage pipeline tests.
-  test_cli.py                CLI user behavior.
-  test_cli_errors.py         CLI error and logging-mode behavior.
-
-benchmarks/
-  timing.py       Timing benchmarks.
-  memory.py         Allocation/memory benchmarks.
-  stress.py         Process-based stress checks and CI gate.
-  inputs.py         Shared benchmark datasets.
-
-.github/workflows/ci.yml
-  Lint, typecheck, tests, stress gate, security audit, build/release checks.
+```bash
+git clone https://github.com/sachn-cs/factorise.git
+cd factorise
+pip install -e ".[dev]"
 ```
 
-## 4. Multi-Stage Pipeline
+## Usage
 
-The pipeline (`FactorisationPipeline`) coordinates multiple factorisation algorithms,
-each as a `FactorStage`. Stages are tried in order until one finds a factor;
-the pipeline then recurses on both the factor and co-factor until everything
-is prime.
-
-### Stage: Trial Division
-
-Finds small prime factors by testing divisibility against a fixed list of small
-primes (up to 7919 by default). Very fast for numbers with small factors.
-
-### Stage: Pollard p-1
-
-Finds factors `p` where `p-1` is smooth (has only small prime factors). Uses
-progressive smoothness bounds and multiple bases. Effective as an intermediate
-stage between trial division and Pollard's Rho.
-
-### Stage: Pollard's Rho (Brent)
-
-General-purpose factorisation using Brent's improvement to Pollard's Rho algorithm.
-Batches GCD computations for throughput. The primary workhorse for small-to-medium
-composites.
-
-### Stage: ECM (Elliptic Curve Method)
-
-Modern general-purpose factorisation using elliptic curve operations. Most effective
-for finding factors in the 10-40 digit range. Runs a configurable number of curves
-(each with a different random curve).
-
-### Stage: Quadratic Sieve
-
-Fast for medium-to-large inputs up to ~80 bits. This simplified implementation
-is suitable for educational purposes and medium-sized inputs.
-
-### Stage: SIQS (Self-Initializing Quadratic Sieve)
-
-Practical choice for 60-110 digit composites in pure Python. Auto-computes the
-smoothness bound and factor base.
-
-### Stage: GNFS (General Number Field Sieve)
-
-Full in-repo adapter wrapping external GNFS tools (msieve, CADO-NFS) with strict
-isolation: input validation, timeout handling, output parsing, and failure
-isolation. Silently skipped if the binary is not on PATH. For very large inputs
-(~80+ bits).
-
-## 5. Configuration
-
-`PipelineConfig` controls the pipeline:
+### Library API
 
 ```python
-from factorise import PipelineConfig, FactorisationPipeline
+from factorise import factorise, is_prime
 
-config = PipelineConfig(
-    trial_division_bound=10_000,
-    pm1_bound=10**6,
-    ecm_curves=20,
-    gnfs_timeout=600,
-    gnfs_binary="msieve",
-    max_iterations=10_000_000,
-    max_retries=20,
-    batch_size=128,
-    seed=None,
-    stage_order=(
-        "trial_division",
-        "pollard_pminus1",
-        "pollard_rho",
-        "ecm",
-        "quadratic_sieve",
-        "gnfs",
-    ),
-)
-pipeline = FactorisationPipeline(config)
-```
-
-`HybridConfig` controls the adaptive engine:
-
-```python
-from factorise import HybridConfig, HybridFactorisationEngine
-
-config = HybridConfig()
-engine = HybridFactorisationEngine(config)
-result = engine.attempt(123456789)
-```
-
-Environment variables (`FACTORISE_*`):
-
-- `FACTORISE_TRIAL_DIVISION_BOUND` — trial division prime ceiling.
-- `FACTORISE_PM1_BOUND` — Pollard p-1 smoothness bound.
-- `FACTORISE_ECM_CURVES` — number of ECM curves to try.
-- `FACTORISE_GNFS_TIMEOUT` — GNFS subprocess timeout in seconds.
-- `FACTORISE_GNFS_BINARY` — GNFS binary name/path.
-- `FACTORISE_BATCH_SIZE`, `FACTORISE_MAX_ITERATIONS`, `FACTORISE_MAX_RETRIES` —
-  Pollard-Brent parameters.
-- `FACTORISE_SEED` — deterministic seed.
-
-## 6. API Reference
-
-### Library
-
-```python
-from factorise import factorise, is_prime, FactorisationResult
-from factorise import FactoriserConfig
-from factorise import FactorisationPipeline, PipelineConfig
-from factorise import StageResult, StageStatus, FactorStage
-from factorise import HybridConfig, HybridFactorisationEngine, hybrid_factorise
-from factorise import PerfectPowerResult, find_perfect_power, has_carmichael_property
-from factorise import ensure_integer_input
-
-# Basic usage
+# Factorise a number
 result = factorise(123456789)
 print(result.factors)       # [3, 3607, 3803]
 print(result.powers)        # {3: 2, 3607: 1, 3803: 1}
 print(result.expression())  # '3^2 * 3607 * 3803'
 
-# Direct pipeline usage
-pipeline = FactorisationPipeline()
-stage_result = pipeline.attempt(123456789)
-print(stage_result.status)  # StageStatus.SUCCESS
-print(stage_result.factor)  # 3
-
-# Primality testing
+# Check primality
 is_prime(97)  # True
-
-# Perfect-power detection
-pp = find_perfect_power(125)
-print(pp.base, pp.exponent)  # 5 3
-
-# Hybrid engine (adaptive algorithm selection)
-engine = HybridFactorisationEngine(HybridConfig())
-result = engine.attempt(123456789)
 ```
 
 ### CLI
@@ -239,111 +60,176 @@ factorise 123456789 --verbose
 factorise 123456789 --log-level INFO
 ```
 
-**Note:** The CLI does not accept negative integers directly because the leading
-`-` is interpreted as an option flag. Use the library API (`factorise(-n)`) for
-negative inputs.
+### Pipeline
 
-## 7. Testing
+```python
+from factorise import FactorisationPipeline, PipelineConfig
 
-Primary test commands:
-
-```bash
-pytest tests/ -v
-pytest --cov=factorise --cov-fail-under=90 tests/
-pytest -v benchmarks/stress.py::test_stress_correctness
-pytest -q tests/test_core_primality.py
-pytest -q tests/test_cli_errors.py
-pytest -q tests/test_pipeline.py
+config = PipelineConfig(
+    trial_division_bound=10_000,
+    pm1_bound=10**6,
+    ecm_curves=20,
+)
+pipeline = FactorisationPipeline(config)
+result = pipeline.attempt(123456789)
 ```
 
-Test strategy:
-- Unit tests: correctness, edge cases, API behavior.
-- Pipeline tests: multi-stage integration, stage ordering, fallback behavior.
-- Integration tests: CLI paths and error handling.
-- Property tests: invariants across broad integer ranges.
-- Stress tests: deterministic correctness at scale.
-- Test modules are organized by domain to reduce navigation friction.
+### Hybrid Engine
 
-## 8. Linting / Formatting / Type Checking
+```python
+from factorise import HybridConfig, HybridFactorisationEngine
 
-```bash
-just lint
-just format
-just type-check
+engine = HybridFactorisationEngine(HybridConfig())
+result = engine.attempt(123456789)
 ```
 
-Or directly:
+## Configuration
 
-```bash
-ruff check factorise/ tests/ benchmarks/
-ruff format factorise/ tests/ benchmarks/
-mypy factorise/ tests/ benchmarks/
+### Environment Variables
+
+All variables use the `FACTORISE_*` prefix. See [`.env.example`](.env.example) for a complete list.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FACTORISE_LOG_LEVEL` | `WARNING` | Logging verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+| `FACTORISE_LOG_FORMAT` | `human` | Log output format |
+| `FACTORISE_BATCH_SIZE` | `128` | GCD operations to batch per iteration |
+| `FACTORISE_MAX_ITERATIONS` | `10000000` | Hard cap on inner steps per attempt |
+| `FACTORISE_MAX_RETRIES` | `20` | Fresh random seeds to try before giving up |
+| `FACTORISE_SEED` | — | Optional deterministic seed for reproducible retries |
+| `FACTORISE_TRIAL_DIVISION_BOUND` | `10000` | Upper prime value for trial division |
+| `FACTORISE_PM1_BOUND` | `1000000` | Smoothness bound for Pollard p-1 |
+| `FACTORISE_ECM_CURVES` | `20` | Number of ECM curves to try |
+| `FACTORISE_GNFS_TIMEOUT` | `600` | GNFS subprocess timeout in seconds |
+| `FACTORISE_GNFS_BINARY` | `msieve` | GNFS binary name/path |
+
+### Programmatic Configuration
+
+```python
+from factorise import FactoriserConfig, PipelineConfig
+
+config = FactoriserConfig(
+    batch_size=256,
+    max_iterations=5_000_000,
+    seed=42,
+)
 ```
 
-Pre-commit:
+## Project Structure
+
+```text
+factorise/
+├── factorise/           # Main package
+│   ├── __init__.py      # Public exports and version
+│   ├── core.py          # Algorithms, validation, domain exceptions
+│   ├── config.py        # Configuration dataclasses with validation
+│   ├── pipeline.py      # Multi-stage pipeline, FactorStage interface
+│   ├── hybrid.py        # Adaptive hybrid engine with threshold routing
+│   ├── cli.py           # CLI command, display, logging, signal handling
+│   ├── utils.py         # Shared utilities (prime sieve)
+│   ├── py.typed         # PEP 561 marker
+│   └── stages/          # Pluggable algorithm stages
+│       ├── trial_division.py
+│       ├── improved_pm1.py
+│       ├── pollard_rho.py
+│       ├── ecm.py
+│       ├── ecm_two_pass.py
+│       ├── ecm_shared.py
+│       ├── quadratic_sieve.py
+│       ├── siqs.py
+│       ├── qs_shared.py
+│       └── gnfs_optimized.py
+├── tests/               # Test suite (90%+ coverage)
+├── benchmarks/          # Timing, memory, and stress benchmarks
+├── docs/                # Algorithm documentation
+└── .github/             # CI/CD workflows and templates
+```
+
+## Development
+
+### Prerequisites
+
+- Python 3.10+
+- [just](https://github.com/casey/just) task runner (recommended)
+
+### Commands
+
+```bash
+# Install dependencies
+just install          # or: pip install -e ".[dev]"
+
+# Development server (not applicable — library only)
+
+# Build
+just build            # or: python -m build
+
+# Test
+just test             # or: pytest tests/ -v
+just test-ci          # pytest with coverage enforcement (≥90%)
+
+# Lint
+just lint             # or: ruff check factorise/ tests/ benchmarks/
+
+# Format
+just format           # or: ruff format factorise/ tests/ benchmarks/
+
+# Type check
+just type-check       # or: mypy factorise/ tests/ benchmarks/
+
+# Full CI suite
+just ci               # lint + type-check + test-ci
+just ci-full          # ci + security + stress-test
+```
+
+### Pre-commit Hooks
 
 ```bash
 pre-commit install
 pre-commit run --all-files
 ```
 
-CI enforces these checks and publishes JUnit artifacts for test jobs.
+## Tech Stack
 
-Documentation:
-- Algorithm notes are maintained as curated narrative docs under `docs/`.
+| Component | Technology |
+|-----------|------------|
+| Language | Python 3.10+ |
+| Build | Hatchling |
+| Linting | Ruff |
+| Type Checking | mypy (strict) |
+| Testing | pytest, Hypothesis |
+| CI/CD | GitHub Actions |
+| Task Runner | just |
+| Pre-commit | pre-commit |
+| Security | pip-audit, CycloneDX SBOM |
 
-## 9. Architecture Notes
+## Roadmap
 
-Design choices:
-- Immutable config (`FactoriserConfig`, `PipelineConfig`, `HybridConfig`) for reproducible and testable behavior.
-- Explicit domain failure (`FactorisationError`) for exhausted compute budgets.
-- `FactorStage` abstract interface for composable, replaceable stages.
-- `StageResult` structured output for observability and debugging.
-- Explicit configuration-driven stage construction (no global registry).
-- Generator-based recursive splitting to keep memory bounded.
+- [ ] Full in-repo GNFS implementation
+- [ ] Parallel ECM curve execution
+- [ ] Generated API reference docs
+- [ ] Periodic benchmark trend checks in CI
+- [ ] WebAssembly (Pyodide) support
+- [ ] Additional factorisation algorithms (Lenstra's ECM variant, MPQS)
 
-Scalability and safety:
-- `max_iterations` and `max_retries` constrain worst-case runtime.
-- Trial division and perfect-square fast paths reduce heavy-path pressure.
-- GNFS adapter with strict input validation, timeout, and output parsing.
-- No unsafe shell execution; external tool inputs are sanitized.
+## Contributing
 
-## 10. Logging / Troubleshooting
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on:
 
-Logging model:
-- Library logging uses the standard-library `logging` module under the `"factorise"` logger name.
-- CLI enables logging and validates allowed levels (`DEBUG`, `INFO`, `WARNING`, `ERROR`).
-- All logs use a structured `key=value` format for machine-parseable observability.
-- Stage-level logging includes: `stage`, `n`, `factor`, `status`, `reason`, `elapsed_ms`.
+- Development setup
+- Branch naming and commit conventions
+- Pull request process
+- Code quality standards
 
-Stage result statuses:
-- `SUCCESS`: stage found a non-trivial factor.
-- `FAILURE`: stage ran but could not find a factor.
-- `SKIPPED`: stage was not applicable (input too small/large, binary not found, etc.).
+## Code of Conduct
 
-Troubleshooting:
-- `TypeError` on input: ensure plain `int` values (no `bool`, `float`, `str`).
-- `FactorisationError`: increase retry/iteration budget or set deterministic seed.
-- GNFS always skipped: ensure `msieve` or `cado-nfs` is on PATH.
-- Wrong factors: enable DEBUG logging to see which stage found each factor.
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) for community standards.
 
-## 11. Future Enhancements
+## Security
 
-- Add full in-repo GNFS implementation.
-- Add parallel ECM curve execution.
-- Add generated API reference docs if external integration demand increases.
-- Add periodic benchmark trend checks in CI for regression detection.
+See [SECURITY.md](SECURITY.md) for vulnerability reporting and security policy.
 
-## 12. Contribution Standards
+**Reporting vulnerabilities**: Please email sachncs@gmail.com for any security-related issues. Do not report vulnerabilities through public GitHub issues.
 
-- Work in-place; avoid parallel implementations.
-- Keep imports, naming, and docstrings consistent with Google-style conventions.
-- Add tests for behavior changes, especially error paths and edge cases.
-- Run `just ci` (or `just ci-full`) before opening a PR.
-- Keep comments high-value: explain intent, assumptions, and tradeoffs.
-- Release flow on version tags uses trusted publishing (OIDC) and produces:
-  - package artifacts (sdist/wheel)
-  - `dist/SHA256SUMS` integrity file
-  - `dist/sbom.cdx.json` CycloneDX SBOM artifact
+## License
 
-See `CONTRIBUTING.md` and `SECURITY.md` for policy details.
+[MIT](LICENSE) © 2026 Sachin

@@ -2,7 +2,14 @@
 
 This directory contains curated narrative documentation for the factorisation algorithms used in the `factorise` package.
 
-## Available Documentation
+## Getting Started
+
+- [Getting Started](getting-started.md) — Installation, configuration, and quick start
+- [Architecture](architecture.md) — Internal design and data flow
+- [Deployment](deployment.md) — Publishing and release process
+- [FAQ](faq.md) — Frequently asked questions
+
+## Algorithm Documentation
 
 - [Miller-Rabin Primality Test](miller_rabin.md)
 - [Pollard's Rho](pollards_rho.md)

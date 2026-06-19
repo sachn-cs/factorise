@@ -10,6 +10,13 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [Unreleased]
 
 ### Added
+- API reference documentation using mkdocs with mkdocstrings.
+- `docs/getting-started.md` — installation, quick start, and configuration guide.
+- `docs/architecture.md` — internal design, components, data flow, and design principles.
+- `docs/deployment.md` — publishing to PyPI, version management, CI/CD pipeline.
+- `docs/faq.md` — frequently asked questions covering usage, performance, troubleshooting.
+- `.github/FUNDING.yml` with GitHub Sponsors placeholder.
+- Additional README badges: coverage, downloads, Python versions, security policy.
 - `factorise/stages/README.md` documenting each stage's purpose, interface, and usage.
 - Targeted coverage tests in `tests/test_coverage_extensions.py` raising overall
   coverage from ~93% to ~97%.
@@ -31,6 +38,10 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   and cofactors pushed back onto the work stack.
 - `FactorisationPipeline._build_stage_map()` uses direct imports instead of
   `importlib.import_module` for clarity.
+- **Documentation**: expanded README with features, tech stack, roadmap, and security sections.
+- **Documentation**: expanded CONTRIBUTING.md with branch naming, commit conventions, and detailed PR process.
+- **Documentation**: expanded SECURITY.md with response expectations, disclosure policy, and security best practices.
+- **Documentation**: added Documentation and Changelog URLs to `pyproject.toml`.
 - `README.md` updated to remove stale references (`loguru`, JSON logging,
   `StageFactory`) and reflect current architecture.
 

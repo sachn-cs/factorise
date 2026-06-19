@@ -69,3 +69,15 @@ ci-full: ci security stress-test
 # Run benchmarks with CI threshold checking
 benchmark-ci:
     pytest benchmarks/timing.py --benchmark-only --benchmark-compare --benchmark-compare-fail=min:10% -v
+
+# Build documentation
+docs-build:
+    mkdocs build
+
+# Serve documentation locally
+docs-serve:
+    mkdocs serve
+
+# Deploy documentation to GitHub Pages
+docs-deploy:
+    mkdocs gh-deploy
