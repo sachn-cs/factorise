@@ -181,7 +181,7 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
 
 ### How do I report a bug?
 
-[Open an issue](https://github.com/sachn-cs/factorise/issues/new?template=bug_report.md) with:
+[Open an issue](https://github.com/sachncs/factorise/issues/new?template=bug_report.md) with:
 
 - Steps to reproduce
 - Expected vs actual behavior

@@ -1,7 +1,7 @@
 # factorise
 
-[![CI](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachn-cs/factorise/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/sachn-cs/factorise/branch/master/graph/badge.svg)](https://codecov.io/gh/sachn-cs/factorise)
+[![CI](https://github.com/sachncs/factorise/actions/workflows/ci.yml/badge.svg)](https://github.com/sachncs/factorise/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sachncs/factorise/branch/master/graph/badge.svg)](https://codecov.io/gh/sachncs/factorise)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/pypi/pyversions/factorise.svg)](https://pypi.org/project/factorise/)
 [![PyPI version](https://img.shields.io/pypi/v/factorise.svg)](https://pypi.org/project/factorise/)
@@ -30,7 +30,7 @@ pip install factorise
 Or install from source:
 
 ```bash
-git clone https://github.com/sachn-cs/factorise.git
+git clone https://github.com/sachncs/factorise.git
 cd factorise
 pip install -e ".[dev]"
 ```

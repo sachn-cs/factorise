@@ -1,8 +1,8 @@
 site_name: factorise
 site_description: Deterministic prime factorisation for Python
-site_url: https://sachn-cs.github.io/factorise/
-repo_url: https://github.com/sachn-cs/factorise
-repo_name: sachn-cs/factorise
+site_url: https://sachncs.github.io/factorise/
+repo_url: https://github.com/sachncs/factorise
+repo_name: sachncs/factorise
 
 theme:
   name: material

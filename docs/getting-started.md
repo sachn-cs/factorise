@@ -13,7 +13,7 @@ pip install factorise
 ### From Source
 
 ```bash
-git clone https://github.com/sachn-cs/factorise.git
+git clone https://github.com/sachncs/factorise.git
 cd factorise
 pip install -e ".[dev]"
 ```

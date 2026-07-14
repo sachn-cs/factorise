@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-Please check for [existing feature requests](https://github.com/sachn-cs/factorise/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement) before submitting a new one.
+Please check for [existing feature requests](https://github.com/sachncs/factorise/issues?q=is%3Aopen+is%3Aissue+label%3Aenhancement) before submitting a new one.
 
 ### Summary
 A short description of the request.

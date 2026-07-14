@@ -20,7 +20,7 @@ This project adheres to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By 
 
 ## Getting Started
 
-1. **Issue first**: For larger changes, please [open an issue](https://github.com/sachn-cs/factorise/issues/new/choose) first to discuss the design.
+1. **Issue first**: For larger changes, please [open an issue](https://github.com/sachncs/factorise/issues/new/choose) first to discuss the design.
 2. **Fork and Branch**: Fork the repo and create a feature branch from `master`.
 3. **Draft PR**: Open a Draft Pull Request early to get feedback.
 4. **Pass Checks**: Ensure all CI checks pass locally before marking as ready for review.
@@ -37,7 +37,7 @@ This project adheres to the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By 
 
 ```bash
 # Clone the repository
-git clone https://github.com/sachn-cs/factorise.git
+git clone https://github.com/sachncs/factorise.git
 cd factorise
 
 # Create virtual environment
@@ -272,4 +272,4 @@ When modifying public API:
 
 ## Questions?
 
-Feel free to [open an issue](https://github.com/sachn-cs/factorise/issues/new/choose) for any questions about contributing.
+Feel free to [open an issue](https://github.com/sachncs/factorise/issues/new/choose) for any questions about contributing.
